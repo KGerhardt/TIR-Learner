@@ -77,6 +77,7 @@ class TIRLearner:
                                  "total_len": 0, "avg_len": -1}
         self.current_step = [0, 0]
         self.working_df_dict = {}
+        self.split_fasta_files_path_list = []
 
         self.execute()
 
@@ -127,10 +128,11 @@ class TIRLearner:
 
         # subprocess.Popen(["unlink", self.genome_file_path]).wait()
         # os.rmdir(self.working_dir_path)
-        if temp_dir is not None:
-            shutil.rmtree(temp_dir)
-        else:
-            shutil.rmtree(self.working_dir_path)
+        if not self.flag_debug:
+            if temp_dir is not None:
+                shutil.rmtree(temp_dir)
+            else:
+                shutil.rmtree(self.working_dir_path)
 
     def pre_scan_fasta_file(self):
         # names = [record.id for record in SeqIO.parse(self.genome_file, "fasta")]
@@ -148,6 +150,10 @@ class TIRLearner:
         for record in SeqIO.parse(self.genome_file_path, "fasta"):
             record.seq = record.seq.upper()
             sequence_str = str(record.seq)
+            seq_len = len(sequence_str)
+            drop_seq_len = self.TIR_length + 500
+            if seq_len < drop_seq_len:
+                continue
 
             if set(sequence_str) > {'A', 'C', 'G', 'T', 'N'}:
                 print(f"WARN: Unknown character exist in sequence {record.id} will be replaced by \'N\'.")
@@ -161,7 +167,7 @@ class TIRLearner:
             if len(sequence_str) < short_seq_len:
                 self.genome_file_stat["short_seq_num"] += 1
 
-            self.genome_file_stat["total_len"] += len(sequence_str)
+            self.genome_file_stat["total_len"] += seq_len
             records.append(record)
         checked_genome_file = f"{self.genome_name}{spliter}checked.fa"
         SeqIO.write(records, checked_genome_file, "fasta")
@@ -335,8 +341,11 @@ class TIRLearner:
             v.to_csv(f"{df_file_name}.csv", index=False, header=True, sep='\t')
             with open(f"{df_file_name}_dtypes.txt", 'w') as f:
                 # f.write(json.dumps(v.dtypes.astype(str).to_dict()) + '\n')
-                f.write(json.dumps(v.loc[0, :].apply(type).apply(str).str[8:-2].str.replace("numpy", "np").to_dict()) +
-                        '\n')
+                try:
+                    f.write(json.dumps(v.loc[0, :].apply(type).apply(str).str[8:-2].
+                                       str.replace("numpy", "np").to_dict()) + '\n')
+                except KeyError:
+                    continue
 
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'w') as f:
             f.write(get_timestamp_now_utc_iso8601() + '\n')

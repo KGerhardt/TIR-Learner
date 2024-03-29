@@ -48,7 +48,8 @@ spliter = "-+-"
 TIR_types = ("DTA", "DTC", "DTH", "DTM", "DTT")
 
 CNN_model_dir_name = "cnn0912_tf_savedmodel"
-sandbox_dir_name = "[DO_NOT_ALTER]_TIR-Learner_sandbox_directory"
+sandbox_dir_name = "[DONT_ALTER]TIR-Learner_sandbox"
+splited_fasta_tag = "SplitedFasta"
 
 program_root_dir_path = os.path.abspath(str(os.path.dirname(os.path.dirname(__file__))))
 
@@ -62,8 +63,8 @@ ref_lib_dir_path = os.path.join(program_root_dir_path, ref_lib_dir_name)
 # TIRvish_overlap_seq_len = 50 * (10 ** 3)  # 50 kb
 
 # TODO only for debug
-TIRvish_split_seq_len = 300
-TIRvish_overlap_seq_len = 200
+TIRvish_split_seq_len = 10000
+TIRvish_overlap_seq_len = 10000
 
 
 short_seq_len = 2000
