@@ -12,7 +12,7 @@ if True:  # noqa: E402
     import shutil
 
     from bin.main import TIRLearner
-    from bin.prog_const import process_additional_args
+    from bin.const import process_additional_args
 
 
 if __name__ == "__main__":
@@ -25,8 +25,8 @@ if __name__ == "__main__":
                         required=True)
     parser.add_argument("-l", "--length", help="Max length of TIR (Optional)", default=5000)
     parser.add_argument("-t", "--processor", help="Number of processors allowed (Optional)", default=os.cpu_count())
-    parser.add_argument('-m', '--mode', help=("Execution mode of GRF, one of the following: \"boost\", \"mix\""
-                                              " or \"native\" (Optional)"), default="smart")
+    parser.add_argument('-m', '--mode', help=("Parallel execution mode, one of the following: \"python\", \"gnu\""
+                                              " (Optional)"), default="python")
     parser.add_argument("-w", "--working_dir", help="Ou(Optional)", default=None)
     parser.add_argument("-o", "--output_dir", help="Output directory (Optional)", default=None)
     parser.add_argument("-c", "--checkpoint", help="Ou (Optional)", nargs='?', const="auto", default=None)

@@ -33,16 +33,26 @@ if True:  # noqa: E402
     import get_fasta_sequence
     import check_TIR_TSD
     import post_processing
-    # import prog_const
 
 
-def get_timestamp_now_utc_iso8601():
+def get_timestamp_now_utc_iso8601() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+
+
+def humanized_file_size(file_size: float) -> str:
+    return next(f"{file_size / 1024 ** i:.6g}{unit}" for i, unit in
+                enumerate(("Byte", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB")) if
+                file_size < 1024 ** (i + 1) or i == 6)
+
+
+def humanized_time(seconds: float) -> str:
+    return next(f"{seconds / 60 ** i:.4g} {unit}" for i, unit in enumerate(("s", "min", "h")) if
+                seconds < 60 ** (i + 1) or i == 2)
 
 
 class TIRLearner:
     def __init__(self, genome_file_path: str, genome_name: str, species: str, TIR_length: int,
-                 cpu_cores: int, GRF_mode: str,
+                 cpu_cores: int, para_mode: str,
                  working_dir_path: str, output_dir_path: str, checkpoint_dir_input_path: str,
                  flag_verbose: bool, flag_debug: bool, GRF_path: str, gt_path: str, additional_args: tuple):
         self.genome_file_path = genome_file_path
@@ -51,7 +61,7 @@ class TIRLearner:
 
         self.TIR_length = TIR_length
         self.cpu_cores = cpu_cores
-        self.GRF_mode = GRF_mode
+        self.para_mode = para_mode
 
         self.working_dir_path = working_dir_path
         self.output_dir_path = output_dir_path
@@ -62,7 +72,6 @@ class TIRLearner:
 
         self.GRF_path = GRF_path
         self.gt_path = gt_path
-        # self.flag_checkpoint = flag_checkpoint
         self.additional_args = additional_args
 
         self.processed_de_novo_result_file_name = f"{self.genome_name}{spliter}processed_de_novo_result.fa"
@@ -137,9 +146,9 @@ class TIRLearner:
     def pre_scan_fasta_file(self):
         # names = [record.id for record in SeqIO.parse(self.genome_file, "fasta")]
         print("Doing pre-scan for genome file...")
-        self.genome_file_stat["file_size_gib"] = os.path.getsize(self.genome_file_path) / (2 ** 10) ** 3
-        # if file_size_gib > 1.0:
-        #     print(f"File size {file_size_gib} GiB > 1 GiB, pre-scan might be slow.")
+        start_time = time.perf_counter()
+        self.genome_file_stat["file_size"] = os.path.getsize(self.genome_file_path)
+
         try:
             self.genome_file_stat["num"] = len(list(SeqIO.index(self.genome_file_path, "fasta")))
         except Exception:
@@ -175,10 +184,10 @@ class TIRLearner:
                                                    self.genome_file_stat["num"])
         self.genome_file_stat["avg_len"] = self.genome_file_stat["total_len"] // self.genome_file_stat["num"]
 
-        self.GRF_execution_mode_check()
-        print("Genome file scan finished!")
+        end_time = time.perf_counter()
+        print(f"Genome file scan finished! Time elapsed: {start_time - end_time} seconds.")
         print(f"  File name: {os.path.basename(self.genome_file_path)}")
-        print(f"  File size: {float('%.4g' % self.genome_file_stat['file_size_gib'])} GiB")
+        print(f"  File size: " + humanized_file_size(self.genome_file_stat["file_size"]))
         print(f"  Number of sequences: {self.genome_file_stat['num']}")
         print(f"  Number of short sequences: {self.genome_file_stat['short_seq_num']}")
         print(f"  Percentage of short sequences: {self.genome_file_stat['short_seq_perc'] * 100} %")
@@ -386,72 +395,6 @@ class TIRLearner:
         return (self.checkpoint_dir_input_path is None or
                 self.current_step[0] < executing_module or
                 (self.current_step[0] == executing_module and self.current_step[1] < executing_step))
-
-    def GRF_execution_mode_check(self):
-        if (SKIP_GRF in self.additional_args or FORCE_GRF_MODE in self.additional_args or
-                self.GRF_mode in ("native", "boost")):
-            return
-
-        if self.genome_file_stat["num"] <= general_split_num_threshold:
-            if self.GRF_mode == "smart":
-                print("  \"native\" mode is selected due to insufficient number of sequences.")
-            else:
-                print(f"   Number of sequences insufficient "
-                      f"(expect >= {general_split_num_threshold}"
-                      f" but actually got {self.genome_file_stat['num']}), "
-                      f"{self.GRF_mode} mode unneeded, redirect to \"native\" mode.")
-            self.GRF_mode = "native"
-            return
-
-        if self.GRF_mode == "mix" and self.cpu_cores < 2 * mix_short_seq_process_num:
-            if self.GRF_mode == "smart":
-                print("  \"native\" mode is selected due to insufficient number of available cpu cores.")
-            else:
-                print(f"   Number of available cpu cores insufficient "
-                      f"(expect >= {2 * mix_short_seq_process_num}"
-                      f" but actually got {self.cpu_cores}), "
-                      f"\"mix\" mode unavailable, redirect to \"native\" mode.")
-            self.GRF_mode = "native"
-
-        # "mix" mode or "smart" mode
-        drop_seq_len = int(self.TIR_length) + 500
-        if drop_seq_len >= short_seq_len:
-            if self.GRF_mode == "mix":
-                print("  Short sequence does not exist after dropping, "
-                      "\"mix\" mode unneeded, redirect to \"native\" mode.")
-            else:
-                print("  \"native\" mode is selected due to short sequence does not exist after dropping.")
-            self.GRF_mode = "native"
-            return
-
-        if self.genome_file_stat["short_seq_perc"] < mix_split_percent_threshold:
-            if self.GRF_mode == "mix":
-                print(f"  Percentage of short sequences insufficient "
-                      f"(expect >= {mix_split_percent_threshold * 100}%"
-                      f" but actually got {self.genome_file_stat['short_seq_perc'] * 100}%), "
-                      f"\"mix\" mode unneeded, redirect to \"native\" mode")
-            else:
-                print("  \"native\" mode is selected due to low percentage of short sequences.")
-            self.GRF_mode = "native"
-            return
-
-        if self.genome_file_stat["short_seq_perc"] > 1 - mix_split_percent_threshold:
-            if self.GRF_mode == "mix":
-                print(f"  Percentage of short sequences too high "
-                      f"(expect < {(1 - mix_split_percent_threshold) * 100}%"
-                      f" but actually got {self.genome_file_stat['short_seq_perc'] * 100}%), "
-                      f"\"mix\" mode inappropriate, redirect to \"boost\" mode")
-            else:
-                print("  \"boost\" mode is selected due to high percentage of short sequences.")
-            self.GRF_mode = "boost"
-            return
-
-        if self.GRF_mode == "smart":
-            print("  \"mix\" mode is selected.")
-            self.GRF_mode = "mix"
-
-    def empty_df_check(self, df_name):
-        raise NotImplementedError()
 
     def execute_M1(self):
         print("############################################################ Module 1 Begin "
