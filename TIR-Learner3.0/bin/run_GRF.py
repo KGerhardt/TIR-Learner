@@ -37,11 +37,20 @@ def GRF_mp(genome_file_path, genome_name, cpu_cores, TIR_length, GRF_path):
     os.chdir("../")
 
 
-# def cpu_cores_allocation_GRF_boost(cpu_cores, num_seq):
-#     num_threads = int(cpu_cores * thread_core_ratio)
-#     num_process = int(math.sqrt(num_threads/16) + 1) * int(1 + num_seq/2)
-#     # num_process = floor((num_threads/16)^(1/2) + 1) * floor(1 + num_seq/2)
-#     return num_process, num_threads
+# TODO explain the function you selected for pystrict
+# Markdown formula: $$\left\lfloor\sqrt{\frac{\text{num_threads}}{16}} + 1\right\rfloor \times
+# \left\lfloor 1 + \frac{\text{num_seq}}{2} \right\rfloor$$
+def cpu_cores_allocation_GRF_py_para(cpu_cores, para_mode, num_seq):
+    if para_mode == "pystrict":
+        print("    INFO: Execute in strict mode. CPU usage will be limited to avoid overusing.")
+        num_threads = int(cpu_cores * thread_core_ratio)
+        num_process = int(math.sqrt(num_threads/16) + 1) * int(1 + num_seq/2)
+        # num_process = floor((num_threads/16)^(1/2) + 1) * floor(1 + num_seq/2)
+    else:
+        print("    INFO: Execute in boost mode. Exhaust available CPU resource.")
+        num_threads = cpu_cores
+        num_process = cpu_cores * thread_core_ratio
+    return num_process, num_threads
 
 
 def run_GRF_native(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, GRF_path):
@@ -51,27 +60,31 @@ def run_GRF_native(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, 
     return get_GRF_result_df_native(genome_name, flag_debug)
 
 
-def run_GRF_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, GRF_path, fasta_files_path_list):
+def run_GRF_py_para(genome_file, genome_name, TIR_length, cpu_cores, para_mode, flag_debug, GRF_path, seq_num,
+                    fasta_files_path_list):
     os.makedirs(f"{splited_fasta_tag}_mp", exist_ok=True)  # TODO revise to include mode detection function
     os.chdir(f"./{splited_fasta_tag}_mp")
 
     print("  Step 1/3: Checking processed FASTA files")
     if (len(fasta_files_path_list) == 0 or
             any(not os.path.exists(f) or os.path.getsize(f) == 0 for f in fasta_files_path_list)):
-        print("      Processed FASTA files not found / invalid. Re-process FASTA files.")
+        print("    Processed FASTA files not found / invalid. Re-process FASTA files.")
         fasta_files_path_list.extend(process_fasta(genome_file, TIRvish_split_seq_len, TIRvish_overlap_seq_len))
 
-    print("  Step 2/3: Executing GRF in boost mode\n")
-    mp_args_list = [(file_path, genome_name, cpu_cores * thread_core_ratio, TIR_length, GRF_path) for
+    print("  Step 2/3: Executing GRF with python multiprocess")
+    num_process, num_threads = cpu_cores_allocation_GRF_py_para(cpu_cores, para_mode, seq_num)
+
+    mp_args_list = [(file_path, genome_name, num_threads, TIR_length, GRF_path) for
                     file_path in fasta_files_path_list]
-    # TODO cpu_cores algorithm needed here
-    with mp.Pool(cpu_cores) as pool:
+
+    print()
+    with mp.Pool(num_process) as pool:
         pool.starmap(GRF_mp, mp_args_list)
     print()
 
     print("  Step 3/3: Getting GRF result")
-    return get_GRF_result_df_boost(fasta_files_path_list, genome_name, flag_debug,
-                                   TIRvish_split_seq_len, TIRvish_overlap_seq_len)
+    return get_GRF_result_df_para(fasta_files_path_list, genome_name, flag_debug,
+                                  TIRvish_split_seq_len, TIRvish_overlap_seq_len)
 
 
 # TODO serial to parallel
@@ -104,7 +117,7 @@ def run_GRF_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, G
 #     return pd.concat(df_list).drop_duplicates(ignore_index=True).sort_values("id", ignore_index=True)
 
 # TODO parallelize this
-def get_GRF_result_df_boost(fasta_files_path_list, genome_name, flag_debug, split_seq_len, overlap_seq_len):
+def get_GRF_result_df_para(fasta_files_path_list, genome_name, flag_debug, split_seq_len, overlap_seq_len):
     GRF_result_dir_name = f"{genome_name}_GRFmite"
     GRF_result_dir_list = [os.path.join(os.path.dirname(file), GRF_result_dir_name) for file in
                            fasta_files_path_list]
@@ -154,13 +167,17 @@ def execute(TIRLearner_instance):
     genome_name = TIRLearner_instance.genome_name
     TIR_length = TIRLearner_instance.TIR_length
     cpu_cores = TIRLearner_instance.cpu_cores
+    para_mode = TIRLearner_instance.para_mode
     flag_debug = TIRLearner_instance.flag_debug
     GRF_path = TIRLearner_instance.GRF_path
     additional_args = TIRLearner_instance.additional_args
+    seq_num = TIRLearner_instance.genome_file_stat["num"]
     fasta_files_path_list = TIRLearner_instance.split_fasta_files_path_list
 
     if NO_PARALLEL in additional_args:
-        return run_GRF_native(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, GRF_path)
+        return run_GRF_native(genome_file, genome_name, TIR_length, cpu_cores, flag_debug, GRF_path)
+    elif para_mode == "gnup":
+        raise NotImplementedError()
     else:
-        return run_GRF_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, GRF_path,
-                             fasta_files_path_list)
+        return run_GRF_py_para(genome_file, genome_name, TIR_length, cpu_cores, para_mode, flag_debug, GRF_path,
+                               seq_num, fasta_files_path_list)

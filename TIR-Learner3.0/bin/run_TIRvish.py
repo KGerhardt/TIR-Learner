@@ -195,14 +195,14 @@ def run_TIRvish_native(genome_file, genome_name, TIR_length, flag_debug, gt_path
     return get_TIRvish_result_df(TIRvish_result_gff3_file_name, flag_debug)
 
 
-def run_TIRvish_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, gt_path, fasta_files_path_list):
+def run_TIRvish_py_para(genome_file, genome_name, TIR_length, cpu_cores, flag_debug, gt_path, fasta_files_path_list):
     os.makedirs(f"{splited_fasta_tag}_mp", exist_ok=True)
     os.chdir(f"./{splited_fasta_tag}_mp")
 
     print("  Step 1/3: Processing FASTA files")
     fasta_files_path_list.extend(process_fasta(genome_file, TIRvish_split_seq_len, TIRvish_overlap_seq_len))
 
-    print("  Step 2/3: Executing TIRvish in boost mode")
+    print("  Step 2/3: Executing TIRvish with python multiprocess")
     mp_args_list = [(file_path, genome_name, TIR_length, gt_path) for file_path in fasta_files_path_list]
     with mp.Pool(cpu_cores) as pool:
         TIRvish_result_gff3_file_path_list = pool.starmap(TIRvish_mp, mp_args_list)
@@ -210,7 +210,7 @@ def run_TIRvish_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debu
     print("  Step 3/3: Getting TIRvish result")
     mp_args_list = [(file_path, flag_debug, TIRvish_split_seq_len, TIRvish_overlap_seq_len) for file_path in
                     TIRvish_result_gff3_file_path_list]
-    with mp.Pool(2 * cpu_cores) as pool:
+    with mp.Pool(cpu_cores * thread_core_ratio) as pool:
         TIRvish_result_df_list = pool.starmap(get_TIRvish_result_df, mp_args_list)
 
     os.chdir("../")
@@ -222,7 +222,7 @@ def execute(TIRLearner_instance):
     genome_name = TIRLearner_instance.genome_name
     TIR_length = TIRLearner_instance.TIR_length
     cpu_cores = TIRLearner_instance.cpu_cores
-    # para_mode = TIRLearner_instance.para_mode
+    para_mode = TIRLearner_instance.para_mode
     # TODO add GNU Parallel support
     flag_verbose = TIRLearner_instance.flag_verbose
     flag_debug = TIRLearner_instance.flag_debug
@@ -232,8 +232,10 @@ def execute(TIRLearner_instance):
 
     if NO_PARALLEL in additional_args:
         df = run_TIRvish_native(genome_file, genome_name, TIR_length, flag_debug, gt_path)
+    elif para_mode == "gnup":
+        raise NotImplementedError()
     else:
-        df = run_TIRvish_boost(genome_file, genome_name, cpu_cores, TIR_length, flag_debug, gt_path,
-                               fasta_files_path_list)
+        df = run_TIRvish_py_para(genome_file, genome_name, TIR_length, cpu_cores, flag_debug, gt_path,
+                                 fasta_files_path_list)
 
     return get_fasta_pieces_SeqIO(genome_file, df, cpu_cores, flag_verbose)
