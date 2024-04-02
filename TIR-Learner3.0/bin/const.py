@@ -72,6 +72,10 @@ thread_core_ratio = 2
 
 
 def process_additional_args(additional_args: list) -> tuple:
+    # processed_additional_args = additional_args
+    # processed_additional_args.remove("")
+    # processed_additional_args = tuple(map(str.upper, processed_additional_args))
+    additional_args.remove("")
     processed_additional_args = tuple(map(str.upper, additional_args))
     if (SKIP_TIRVISH in processed_additional_args) and (SKIP_GRF in processed_additional_args):
         raise SystemExit("ERROR: \"skip_tirvish\" and \"skip_grf\" cannot be specified at the same time!")

@@ -65,7 +65,7 @@ if __name__ == "__main__":
     gt_path = parsed_args.gt_path.replace('"', "")
     additional_args = process_additional_args(parsed_args.additional_args.split(" "))
     if len(additional_args) != 0:
-        print(f"INFO: Additional args: {additional_args} accepted.")
+        print(f"INFO: Additional args: {additional_args} captured.")
 
     # Transforming the possible relative path into absolute path
     genome_file = os.path.abspath(genome_file)
