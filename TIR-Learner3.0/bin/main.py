@@ -185,7 +185,7 @@ class TIRLearner:
         self.genome_file_stat["avg_len"] = self.genome_file_stat["total_len"] // self.genome_file_stat["num"]
 
         end_time = time.perf_counter()
-        print(f"Genome file scan finished! Time elapsed: {humanized_time(end_time - start_time)} seconds.")
+        print(f"Genome file scan finished! Time elapsed: {humanized_time(end_time - start_time)}.")
         print(f"  File name: {os.path.basename(self.genome_file_path)}")
         print(f"  File size: " + humanized_file_size(self.genome_file_stat["file_size"]))
         print(f"  Number of sequences: {self.genome_file_stat['num']}")
