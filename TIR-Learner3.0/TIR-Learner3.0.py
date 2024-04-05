@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2024-01-20
+# 2024-04-05
 
 import os
 import sys
@@ -19,6 +19,7 @@ if __name__ == "__main__":
 
     # ================================================ argument parsing ================================================
     parser = argparse.ArgumentParser(prog="TIR-Learner")
+    parser.add_argument("-v", "--version", action="version", version="%(prog)s 3.0")
     parser.add_argument("-f", "--genome_file", help="Genome file in fasta format", required=True)
     parser.add_argument("-n", "--genome_name", help="Genome name (Optional)", default="TIR-Learner")
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
@@ -38,8 +39,8 @@ if __name__ == "__main__":
                                                        "If not specified, the program will automatically search for it "
                                                        "in the genome file directory and the output directory.",
                         nargs='?', const="auto", default=None)
-    parser.add_argument("-v", "--verbose", help="Verbose mode (Optional). "
-                                                "Will show interactive progress bar and more execution details.",
+    parser.add_argument("--verbose", help="Verbose mode (Optional). "
+                                          "Will show interactive progress bar and more execution details.",
                         action="store_true")
     parser.add_argument("-d", "--debug", help="Debug mode (Optional). If activated, data for all completed steps "
                                               "will be stored in the checkpoint file. Meanwhile, the temporary files "
