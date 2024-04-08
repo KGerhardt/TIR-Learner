@@ -1,0 +1,34 @@
+name: Run tests
+on:
+  push:
+    branches: *
+  pull_request:
+    branches: [main]
+
+# Cancel if a newer run is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-test:
+    runs-on: ubuntu-latest
+    name: ci-test
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniconda-version: "latest"
+          python-version: 3.11
+          activate-environment: tir-learner
+          environment-file: environment.yml
+          auto-activate-base: false
+          auto-update-conda: true
+      
+      - name: Run the test
+        run: |
+          ./TIR-Learner3.0/TIR-Learner3.0.py \
+            -v

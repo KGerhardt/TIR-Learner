@@ -1,0 +1,18 @@
+name: "tir-learner"
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - genericrepeatfinder
+  - genometools-genometools
+  - blast
+  - scikit-learn
+  - biopython
+  - pandas
+  - glob2
+  - multiprocess
+  - regex
+  - tensorflow
+  - keras
+  - swifter
