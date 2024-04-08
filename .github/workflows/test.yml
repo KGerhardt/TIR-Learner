@@ -23,7 +23,6 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniconda-version: "latest"
-          python-version: 3.11
           activate-environment: tir-learner
           environment-file: environment.yml
           auto-activate-base: false
