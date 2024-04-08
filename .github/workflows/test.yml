@@ -30,6 +30,7 @@ jobs:
       
       - name: Run the test
         run: |
+          conda activate tir-learner
           conda list
           ./TIR-Learner3.0/TIR-Learner3.0.py \
             -v
