@@ -1,4 +1,4 @@
-name: "tir-learner"
+name: tir-learner
 channels:
   - conda-forge
   - bioconda

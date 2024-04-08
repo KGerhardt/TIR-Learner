@@ -13,24 +13,21 @@ concurrency:
 
 jobs:
   ci-test:
-    runs-on: ubuntu-latest
     name: ci-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
 
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          miniconda-version: "latest"
           activate-environment: tir-learner
           environment-file: environment.yml
           auto-activate-base: false
-          auto-update-conda: true
-      
-      - name: Run the test
-        run: |
-          conda activate tir-learner
+      - run: |
+          conda info
           conda list
           ./TIR-Learner3.0/TIR-Learner3.0.py \
             -v
