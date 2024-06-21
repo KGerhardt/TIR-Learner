@@ -4,15 +4,15 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - bioconda::genericrepeatfinder=1.0.2
-  - bioconda::genometools-genometools=1.6.5
-  - bioconda::blast=2.15.0
-  - conda-forge::biopython=1.83
-  - conda-forge::scikit-learn=1.4.1.post1
-  - conda-forge::pandas=2.2.1
-  - conda-forge::glob2=0.7
-  - conda-forge::multiprocess=0.70.16
-  - conda-forge::regex=2023.12.25
-  - conda-forge::tensorflow=2.15.0
-  - conda-forge::keras=2.15.0
-  - conda-forge::swifter=1.4.0
+  - bioconda::blast=2.15.0=pl5321h6f7f691_1
+  - bioconda::genericrepeatfinder=1.0.2=h4ac6f70_0
+  - bioconda::genometools-genometools=1.6.5=py312h16aaebc_2
+  - conda-forge::biopython=1.83=py312h98912ed_0
+  - conda-forge::glob2=0.7=py_0
+  - conda-forge::keras=3.3.3=pyhd8ed1ab_0
+  - conda-forge::multiprocess=0.70.16=py312h98912ed_0
+  - conda-forge::pandas=2.2.2=py312h1d6d2e6_1
+  - conda-forge::regex=2024.5.15=py312h9a8786e_0
+  - conda-forge::scikit-learn=1.5.0=py312h1fcc3ea_1
+  - conda-forge::swifter=1.4.0=pyhd8ed1ab_0
+  - conda-forge::tensorflow=2.16.1=cpu_py312hfe0d8c0_0
