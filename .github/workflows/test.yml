@@ -1,0 +1,38 @@
+name: Run test
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches: [main]
+
+# Cancel if a newer run is started
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-test:
+    name: ci-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: tir-learner
+          environment-file: environment.yml
+          auto-activate-base: false
+      - run: |
+          ./TIR-Learner3.0/TIR-Learner3.0.py \
+            -v
+          ./TIR-Learner3.0/TIR-Learner3.0.py \
+            -f test/genome.fa \
+            -s others \
+            -t 2 \
+            -l 5000 \
+            -c ./ \
+            -o results

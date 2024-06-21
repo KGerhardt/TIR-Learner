@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     # ================================================ argument parsing ================================================
     parser = argparse.ArgumentParser(prog="TIR-Learner")
-    parser.add_argument("-v", "--version", action="version", version="%(prog)s 3.0")
+    parser.add_argument("-v", "--version", action="version", version="%(prog)s 3.0.1")
     parser.add_argument("-f", "--genome_file", help="Genome file in fasta format", required=True)
     parser.add_argument("-n", "--genome_name", help="Genome name (Optional)", default="TIR-Learner")
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
