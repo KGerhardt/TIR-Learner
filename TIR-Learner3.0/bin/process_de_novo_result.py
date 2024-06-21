@@ -30,7 +30,7 @@ def check_N_per(s):
 
 
 def find_digits_sum(string):
-    pattern = '(\d+)'
+    pattern = r"(\d+)"
     l = re.findall(pattern, string)
     return sum([int(i) for i in l])
 

@@ -50,7 +50,7 @@ def feature_encoding(df_in, flag_verbose):
     df = df.drop(columns="seq_frag")
     print("  Step 3/7: One-Hot Encoding - Converting class vectors to binary class matrices")
     df["feature"] = df.swifter.progress_bar(flag_verbose).apply(
-        lambda x: to_categorical(x["int_enc"], num_classes=num_classes), axis=1)
+        lambda x: keras.utils.to_categorical(x["int_enc"], num_classes=num_classes), axis=1)
     df = df.drop(columns="int_enc")
 
     # inputfeatures = np.array(input_features)
@@ -59,7 +59,7 @@ def feature_encoding(df_in, flag_verbose):
 
 
 def predict(df_in, genome_file, path_to_model):
-    model = load_model(path_to_model)
+    model = keras.models.load_model(path_to_model)
     pre_feature = df_in["feature"].to_numpy()
     df = df_in.drop(columns="feature")
 
@@ -111,7 +111,6 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 
     df = feature_encoding(df, TIRLearner_instance.flag_verbose)
 
-    df = predict(df, TIRLearner_instance.genome_file_path,
-                 os.path.join(program_root_dir_path, CNN_model_dir_name))
+    df = predict(df, TIRLearner_instance.genome_file_path, CNN_model_dir_path)
 
     return postprocessing(df, TIRLearner_instance.flag_verbose)

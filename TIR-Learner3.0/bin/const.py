@@ -3,8 +3,8 @@ import warnings
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'  # mute all tensorflow info, warnings, and error msgs. #shujun
 os.environ["KMP_WARNINGS"] = '0'  # mute all OpenMP warnings. #shujun
-warnings.filterwarnings("ignore", category=FutureWarning)  # mute tensorflow warnings and pyarrow warning
-warnings.filterwarnings("ignore", category=UserWarning)  # mute h5py warning
+# warnings.filterwarnings("ignore", category=FutureWarning)  # mute tensorflow warnings and pyarrow warning
+warnings.filterwarnings("ignore", category=UserWarning)  # mute keras warning
 
 # Use if True to suppress the PEP8: E402 warning
 if True:  # noqa: E402
@@ -29,9 +29,10 @@ if True:  # noqa: E402
     from sklearn.preprocessing import LabelEncoder
     # Attention: sklearn does not automatically import its subpackages
     import tensorflow as tf
+    import keras
     from tensorflow.python.framework.errors_impl import InternalError
-    from keras.utils import to_categorical
-    from keras.models import load_model
+    # from keras.utils import to_categorical
+    # from keras.models import load_model
 
 
 # Acceptable additional args
@@ -43,11 +44,12 @@ SKIP_GRF = "SKIP_GRF"
 spliter = "-+-"
 TIR_types = ("DTA", "DTC", "DTH", "DTM", "DTT")
 
-CNN_model_dir_name = "cnn0912_tf_savedmodel"
+CNN_model_dir_path = "./cnn0912/cnn0912.keras"
 sandbox_dir_name = "[DONT_ALTER]TIR-Learner_sandbox"
 splited_fasta_tag = "SplitedFasta"
 
 program_root_dir_path = os.path.abspath(str(os.path.dirname(os.path.dirname(__file__))))
+CNN_model_dir_path = os.path.join(program_root_dir_path, CNN_model_dir_path)
 
 ref_lib_dir_name = "RefLib"
 ref_lib_available_species = ("rice", "maize")
