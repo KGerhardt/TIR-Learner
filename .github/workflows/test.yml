@@ -1,8 +1,8 @@
-name: Run test
+name: run test
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches: [main]
 
@@ -26,13 +26,5 @@ jobs:
           activate-environment: tir-learner
           environment-file: environment.yml
           auto-activate-base: false
-      - run: |
-          ./TIR-Learner3.0/TIR-Learner3.0.py \
-            -v
-          ./TIR-Learner3.0/TIR-Learner3.0.py \
-            -f test/genome.fa \
-            -s others \
-            -t 2 \
-            -l 5000 \
-            -c ./ \
-            -o results
+      - run: python3 ./TIR-Learner3/TIR-Learner.py --version
+      - run: python3 ./TIR-Learner3/TIR-Learner.py -f test/genome.fa -s others -t 2 -l 5000 -c ./ -o results
