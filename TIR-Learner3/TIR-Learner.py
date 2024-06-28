@@ -15,11 +15,15 @@ if True:  # noqa: E402
     from bin.main import TIRLearner
     from bin.const import process_additional_args
 
+VERSION = "v3.0.2"
+INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
+        "published under GPLv3")
+
 if __name__ == "__main__":
 
     # ================================================ argument parsing ================================================
     parser = argparse.ArgumentParser(prog="TIR-Learner")
-    parser.add_argument("-v", "--version", action="version", version="%(prog)s 3.0.1")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}\n{INFO}")
     parser.add_argument("-f", "--genome_file", help="Genome file in fasta format", required=True)
     parser.add_argument("-n", "--genome_name", help="Genome name (Optional)", default="TIR-Learner")
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
