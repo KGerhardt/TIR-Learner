@@ -1,18 +1,24 @@
-[![Run tests](https://github.com/GallVp/TIR-Learner/actions/workflows/test.yml/badge.svg)](https://github.com/GallVp/TIR-Learner/actions/workflows/test.yml)
+***---*** ⚠ ***Readme under construction ---***
 
 # TIR-Learner
 
-## Run with Conda
+[![current release](https://img.shields.io/github/release/lutianyu2001/TIR-Learner.svg)](https://github.com/lutianyu2001/TIR-Learner/releases)
+[![license](https://img.shields.io/github/license/lutianyu2001/TIR-Learner.svg)](https://github.com/lutianyu2001/TIR-Learner/blob/master/LICENSE)
+[![run tests](https://github.com/lutianyu2001/TIR-Learner/actions/workflows/test.yml/badge.svg)](https://github.com/lutianyu2001/TIR-Learner/actions/workflows/test.yml)
+[![bioconda platform](https://anaconda.org/bioconda/tir-learner/badges/platforms.svg)](https://anaconda.org/bioconda/tir-learner) 
+[![bioconda version](https://anaconda.org/bioconda/tir-learner/badges/version.svg)](https://anaconda.org/bioconda/tir-learner) 
+[![bioconda downloads](https://anaconda.org/bioconda/tir-learner/badges/downloads.svg)](https://anaconda.org/bioconda/tir-learner)
+
+## Installation with Conda/Mamba
 
 ```bash
-conda env create --file environment.yml
-conda activate tir-learner
+conda create -n TIR-Learner
+conda activate TIR-Learner
+mamba install -c conda-forge -c bioconda tir-learner
+```
 
-./TIR-Learner3.0/TIR-Learner3.0.py \
-    -f test/genome.fa \
-    -s others \
-    -t 2 \
-    -l 5000 \
-    -c ./ \
-    -o results
+## Quick Test
+
+```bash
+TIR-Learner -f test/genome.fa -s others -t 2 -l 5000 -c ./ -o results
 ```
