@@ -1,9 +1,3 @@
-# import re
-# import numpy as np
-# import pandas as pd
-# import swifter  # ATTENTION: DO NOT REMOVE "swifter" EVEN IF IDE SHOWS IT IS NOT USED!
-# from Bio.Seq import Seq
-
 from const import *
 
 # DTA:8
@@ -205,10 +199,10 @@ def execute(TIRLearner_instance, module: str):
 
     print("  Step 1/6: Checking TIR")
     df["TIR_len"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(check_TIR, axis=1)
-    df.to_csv("test1")
+    # df.to_csv("test1")
     print("  Step 2/6: Checking TSD")
     df["TSD_len"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(check_TSD, axis=1)
-    df.to_csv("test2")
+    # df.to_csv("test2")
     df = df.dropna(ignore_index=True)
     df = df.astype({"TIR_len": int, "TSD_len": int})
 

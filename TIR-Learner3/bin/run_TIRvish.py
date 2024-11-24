@@ -1,11 +1,3 @@
-# import os
-# import subprocess
-# import pandas as pd
-# import swifter  # ATTENTION: DO NOT REMOVE "swifter" EVEN IF IDE SHOWS IT IS NOT USED!
-# from get_fasta_sequence import get_fasta_pieces_SeqIO
-#
-# import prog_const
-
 from const import *
 
 from get_fasta_sequence import get_fasta_pieces_SeqIO
@@ -202,7 +194,7 @@ def run_TIRvish_py_para(genome_file, genome_name, TIR_length, cpu_cores, flag_de
     print("  Step 1/3: Processing FASTA files")
     fasta_files_path_list.extend(process_fasta(genome_file, TIRvish_split_seq_len, TIRvish_overlap_seq_len))
 
-    print("  Step 2/3: Executing TIRvish with python multiprocess")
+    print("  Step 2/3: Executing TIRvish with python multiprocessing")
     mp_args_list = [(file_path, genome_name, TIR_length, gt_path) for file_path in fasta_files_path_list]
     with mp.Pool(cpu_cores) as pool:
         TIRvish_result_gff3_file_path_list = pool.starmap(TIRvish_mp, mp_args_list)
@@ -210,8 +202,9 @@ def run_TIRvish_py_para(genome_file, genome_name, TIR_length, cpu_cores, flag_de
     print("  Step 3/3: Getting TIRvish result")
     mp_args_list = [(file_path, flag_debug, TIRvish_split_seq_len, TIRvish_overlap_seq_len) for file_path in
                     TIRvish_result_gff3_file_path_list]
-    with mp.Pool(cpu_cores * thread_core_ratio) as pool:
+    with mp.Pool(cpu_cores * process_core_ratio) as pool:
         TIRvish_result_df_list = pool.starmap(get_TIRvish_result_df, mp_args_list)
+    # TODO Unified cpu usage representation in code (cpu_cores, num_processes, num_threads)
 
     os.chdir("../")
     return pd.concat(TIRvish_result_df_list).reset_index(drop=True)

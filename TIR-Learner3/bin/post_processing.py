@@ -1,10 +1,3 @@
-# import os
-# import multiprocessing as mp
-#
-# import numpy as np
-# import pandas as pd
-# import swifter  # ATTENTION: DO NOT REMOVE "swifter" EVEN IF IDE SHOWS IT IS NOT USED!
-
 from const import *
 
 from get_fasta_sequence import get_fasta_pieces_SeqIO
@@ -13,9 +6,15 @@ from process_de_novo_result import TA_repeats_check
 
 def combine_all(df_list):
     if len(df_list) > 1:
-        df = pd.concat(df_list, ignore_index=True)
+        try:
+            df = pd.concat(df_list, ignore_index=True)
+        except ValueError:
+            df = None
     else:
         df = df_list[0].copy()
+
+    if df is None or df.shape[0] == 0:
+        return None
 
     df = df.sort_values(["seqid", "sstart", "send", "source", "type"], ignore_index=True)
     df = df.drop_duplicates(["seqid", "sstart", "send"], keep="first", ignore_index=True)
@@ -199,14 +198,15 @@ def execute(TIRLearner_instance, raw_result_df_list):
 
     print("############################################################ Post Processing  "
           "#########################################################")
-    result_output_dir_path = os.path.join(output_dir, "TIR-Learner-Result")
-    os.makedirs(result_output_dir_path, exist_ok=True)
 
     print("  Step 1/6: Combining all results")
     df_combined = combine_all(raw_result_df_list)
-    if df_combined.shape[0] == 0:
-        print("NOTICE: No TIR found. Post-processing will be terminated and no result will be produced.")
+    if df_combined is None or df_combined.shape[0] == 0:
+        print("WARN: No TIR found. Post-processing will be terminated and no result will be produced.")
         return
+
+    result_output_dir_path = os.path.join(output_dir, "TIR-Learner-Result")
+    os.makedirs(result_output_dir_path, exist_ok=True)
 
     print("  Step 2/6: Preparing gff3 attributes for all sequences")
     df_gff3 = format_df_in_gff3_format(df_combined, flag_verbose)

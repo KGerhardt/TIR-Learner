@@ -1,7 +1,3 @@
-# import subprocess
-# import pandas as pd
-# from Bio import SeqIO
-
 from const import *
 
 

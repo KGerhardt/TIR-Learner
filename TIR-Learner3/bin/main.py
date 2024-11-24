@@ -1,23 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2024-01-09
-
-# import datetime
-# import json
-# import os
-# import re
-# import shutil
-# import subprocess
-# import tempfile
-#
-# import warnings
-# warnings.simplefilter(action='ignore', category=FutureWarning)
-#
-# import pandas as pd
-# import swifter
-#
-# from Bio import SeqIO
-# from Bio.Seq import Seq
+# 2024-11-24
 
 from const import *
 
@@ -84,7 +67,7 @@ class TIRLearner:
         self.genome_file_stat = {"file_size_gib": -0.1, "num": -1,
                                  "short_seq_num": 0, "short_seq_perc": -0.1,
                                  "total_len": 0, "avg_len": -1}
-        self.current_step = [0, 0]
+        self.current_progress = [0, 0]
         self.working_df_dict = {}
         self.split_fasta_files_path_list = []
 
@@ -283,11 +266,14 @@ class TIRLearner:
                           f"Will skip loading checkpoint and start from the very beginning.")
                     return
 
-                self.current_step = [module, step]
+                self.current_progress = [module, step]
 
                 # df_current_file = f.readline().rstrip()
                 working_df_filename_dict = json.loads(checkpoint_info_file.readline().rstrip())
                 for k, v in working_df_filename_dict.items():
+                    if v is None:
+                        self[k] = None
+                        continue
                     df_file_name = os.path.join(self.checkpoint_dir_input_path, v)
                     df_dtype_file_name = f"{df_file_name}_dtypes.txt"
                     with open(df_dtype_file_name, 'r') as df_dtype_file:
@@ -329,7 +315,7 @@ class TIRLearner:
 
     def reset_checkpoint_load_state(self, warn_info: str):
         print(warn_info)
-        self.current_step = [0, 0]
+        self.current_progress = [0, 0]
         self.clear()
 
     def save_checkpoint_file(self):
@@ -339,13 +325,16 @@ class TIRLearner:
             return
 
         # print(self.current_step) # TODO debug only
-        module = self.current_step[0]
-        step = self.current_step[1]
+        module = self.current_progress[0]
+        step = self.current_progress[1]
         # checkpoint_file_name = f"module_{module}_step_{step}_{timestamp_now_iso8601}.csv"
         working_df_filename_dict = {k: f"{k}_module_{module}_step_{step}_{get_timestamp_now_utc_iso8601()}"
                                     for k in self.keys()}
         # print(working_df_filename_dict) # TODO debug only
         for k, v in self.items():
+            if v is None:
+                working_df_filename_dict[k] = None
+                continue
             df_file_name = os.path.join(self.checkpoint_dir_output_path, working_df_filename_dict[k])
             v.to_csv(f"{df_file_name}.csv", index=False, header=True, sep='\t')
             with open(f"{df_file_name}_dtypes.txt", 'w') as f:
@@ -354,7 +343,7 @@ class TIRLearner:
                     f.write(json.dumps(v.loc[0, :].apply(type).apply(str).str[8:-2].
                                        str.replace("numpy", "np").to_dict()) + '\n')
                 except KeyError:
-                    continue
+                    pass
 
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'w') as f:
             f.write(get_timestamp_now_utc_iso8601() + '\n')
@@ -384,17 +373,24 @@ class TIRLearner:
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'r') as f:
             lines = f.readlines()
 
-        module = self.current_step[0]
-        step = self.current_step[1]
+        module = self.current_progress[0]
+        step = self.current_progress[1]
         lines[1] = json.dumps((self.species, module, step)) + '\n'
 
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'w') as f:
             f.writelines(lines)
 
-    def module_step_execution_check(self, executing_module: int, executing_step: int) -> bool:
+    def progress_check(self, progress_or_module: int | list, step: int = None) -> bool:
+        if type(progress_or_module) == list:
+            executing_module = progress_or_module[0]
+            executing_step = progress_or_module[1]
+        else:
+            executing_module = progress_or_module
+            executing_step = step
+
         return (self.checkpoint_dir_input_path is None or
-                self.current_step[0] < executing_module or
-                (self.current_step[0] == executing_module and self.current_step[1] < executing_step))
+                self.current_progress[0] < executing_module or
+                (self.current_progress[0] == executing_module and self.current_progress[1] < executing_step))
 
     def execute_M1(self):
         print("############################################################ Module 1 Begin "
@@ -406,35 +402,40 @@ class TIRLearner:
         # os.chdir(os.path.join(dir, module))
 
         # Module 1, Step 1: Blast reference library in genome file
-        if self.module_step_execution_check(1, 1):
+        current_progress = [1, 1]
+        if self.progress_check(current_progress):
             blast_reference.blast_genome_file(self)
-            self.current_step = [1, 1]
+            self.current_progress = current_progress
 
         # Module 1, Step 2: Select 100% coverage entries from blast results
-        if self.module_step_execution_check(1, 2):
+        current_progress = [1, 2]
+        if self.progress_check(current_progress):
             self["base"] = process_homology.select_full_coverage(self)
-            self.current_step = [1, 2]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 1, Step 3: Making blastDB and get candidate FASTA sequences
-        if self.module_step_execution_check(1, 3):
+        current_progress = [1, 3]
+        if self.progress_check(current_progress):
             print("Module 1, Step 3: Making blastDB and get candidate FASTA sequences")
             self["base"] = get_fasta_sequence.execute(self)
-            self.current_step = [1, 3]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 1, Step 4: Check TIR and TSD
-        if self.module_step_execution_check(1, 4):
+        current_progress = [1, 4]
+        if self.progress_check(current_progress):
             print("Module 1, Step 4: Check TIR and TSD")
             self["base"] = check_TIR_TSD.execute(self, module)
-            self.current_step = [1, 4]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 1, Step 5: Save module result
-        if self.module_step_execution_check(1, 5):
+        current_progress = [1, 5]
+        if self.progress_check(current_progress):
             self["m1"] = self["base"]
             del self["base"]
-            self.current_step = [1, 5]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         print("############################################################ Module 1 Finished "
@@ -450,72 +451,83 @@ class TIRLearner:
         # os.chdir(os.path.join(dir, module))
 
         # Module 2, Step 1: Run TIRvish to find inverted repeats
-        if self.module_step_execution_check(2, 1) and SKIP_TIRVISH not in self.additional_args:
+        current_progress = [2, 1]
+        if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 2, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)
-            self.current_step = [2, 1]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 2: Process TIRvish results
-        if self.module_step_execution_check(2, 2) and SKIP_TIRVISH not in self.additional_args:
+        current_progress = [2, 2]
+        if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 2, Step 2: Process TIRvish results")
             self["TIRvish"] = process_de_novo_result.process_TIRvish_result(self)
-            self.current_step = [2, 2]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 3: Run GRF to find inverted repeats
-        if self.module_step_execution_check(2, 3) and SKIP_GRF not in self.additional_args:
+        current_progress = [2, 3]
+        if self.progress_check(current_progress) and SKIP_GRF not in self.additional_args:
             print("Module 2, Step 3: Run GRF to find inverted repeats")
             self["GRF"] = run_GRF.execute(self)
-            self.current_step = [2, 3]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 4: Process GRF results
-        if self.module_step_execution_check(2, 4) and SKIP_GRF not in self.additional_args:
+        current_progress = [2, 4]
+        if self.progress_check(current_progress) and SKIP_GRF not in self.additional_args:
             print("Module 2, Step 4: Process GRF results")
             self["GRF"] = process_de_novo_result.process_GRF_result(self)
-            self.current_step = [2, 4]
+            self.current_progress = current_progress
+            self.save_checkpoint_file()
 
         # Module 2, Step 5: Combine TIRvish and GRF results
-        if self.module_step_execution_check(2, 5):
+        current_progress = [2, 5]
+        if self.progress_check(current_progress):
             print("Module 2, Step 5: Combine TIRvish and GRF results")
             process_de_novo_result.combine_de_novo_result(self)
-            self.current_step = [2, 5]
+            self.current_progress = current_progress
             self.save_processed_de_novo_result_checkpoint_file()
 
         # Module 2, Step 6: Blast GRF and TIRvish result in reference library
-        if self.module_step_execution_check(2, 6):
+        current_progress = [2, 6]
+        if self.progress_check(current_progress):
             # Checkpoint saving for this step is currently not available
             blast_reference.blast_de_novo_result(self)
-            self.current_step = [2, 6]
+            self.current_progress = current_progress
 
         # Module 2, Step 7: Select 80% similar entries from blast results
-        if self.module_step_execution_check(2, 7):
+        current_progress = [2, 7]
+        if self.progress_check(current_progress):
             self["base"] = process_homology.select_eighty_similarity(self)
-            self.current_step = [2, 7]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 8: Get FASTA sequences from 80% similarity
-        if self.module_step_execution_check(2, 8):
+        current_progress = [2, 8]
+        if self.progress_check(current_progress):
             print("Module 2, Step 8: Get FASTA sequences from 80% similarity")
             self["base"] = get_fasta_sequence.execute(self)
             self["m2_homo"] = self["base"].copy()
-            self.current_step = [2, 8]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 6: Check TIR and TSD
-        if self.module_step_execution_check(2, 9):
+        current_progress = [2, 9]
+        if self.progress_check(current_progress):
             print("Module 2, Step 9: Check TIR and TSD")
             self["base"] = check_TIR_TSD.execute(self, module)
-            self.current_step = [2, 9]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 2, Step 7: Save module result
-        if self.module_step_execution_check(2, 10):
+        current_progress = [2, 10]
+        if self.progress_check(current_progress):
             print("Module 2, Step 10: Save module result")
             self["m2"] = self["base"]
             del self["base"]
-            self.current_step = [2, 10]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         print("############################################################ Module 2 Finished "
@@ -531,39 +543,44 @@ class TIRLearner:
         # os.chdir(os.path.join(dir, module))
 
         # Module 3, Step 1: Prepare data
-        if self.module_step_execution_check(3, 1):
+        current_progress = [3, 1]
+        if self.progress_check(current_progress):
             print("Module 3, Step 1: Prepare data")
             self["base"] = prepare_data.execute(self, self["m2_homo"])
             del self["m2_homo"]
-            self.current_step = [3, 1]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 3, Step 2: CNN prediction
-        if self.module_step_execution_check(3, 2):
+        current_progress = [3, 2]
+        if self.progress_check(current_progress):
             print("Module 3, Step 2: CNN prediction")
             self["base"] = CNN_predict.execute(self)
-            self.current_step = [3, 2]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 3, Step 3: Get FASTA sequences from CNN prediction
-        if self.module_step_execution_check(3, 3):
+        current_progress = [3, 3]
+        if self.progress_check(current_progress):
             print("Module 3, Step 3: Get FASTA sequences from CNN prediction")
             self["base"] = get_fasta_sequence.execute(self)
-            self.current_step = [3, 3]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 3, Step 4: Check TIR and TSD
-        if self.module_step_execution_check(3, 4):
+        current_progress = [3, 4]
+        if self.progress_check(current_progress):
             print("Module 3, Step 4: Check TIR and TSD")
             self["base"] = check_TIR_TSD.execute(self, module)
-            self.current_step = [3, 4]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 3, Step 5: Save module result
-        if self.module_step_execution_check(3, 5):
+        current_progress = [3, 5]
+        if self.progress_check(current_progress):
             self["m3"] = self["base"]
             del self["base"]
-            self.current_step = [3, 5]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         print("############################################################ Module 3 Finished "
@@ -579,72 +596,83 @@ class TIRLearner:
         # os.chdir(os.path.join(dir, module))
 
         # Module 4, Step 1: Run TIRvish to find inverted repeats
-        if self.module_step_execution_check(4, 1) and SKIP_TIRVISH not in self.additional_args:
+        current_progress = [4, 1]
+        if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 4, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)
-            self.current_step = [4, 1]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 2: Process TIRvish results
-        if self.module_step_execution_check(4, 2) and SKIP_TIRVISH not in self.additional_args:
+        current_progress = [4, 2]
+        if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 4, Step 2: Process TIRvish results")
             self["TIRvish"] = process_de_novo_result.process_TIRvish_result(self)
-            self.current_step = [4, 2]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 3: Run GRF to find inverted repeats
-        if self.module_step_execution_check(4, 3) and SKIP_GRF not in self.additional_args:
+        current_progress = [4, 3]
+        if self.progress_check(current_progress) and SKIP_GRF not in self.additional_args:
             print("Module 4, Step 3: Run GRF to find inverted repeats")
             self["GRF"] = run_GRF.execute(self)
-            self.current_step = [4, 3]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 4: Process GRF results
-        if self.module_step_execution_check(4, 4) and SKIP_GRF not in self.additional_args:
+        current_progress = [4, 4]
+        if self.progress_check(current_progress) and SKIP_GRF not in self.additional_args:
             print("Module 4, Step 4: Process GRF results")
             self["GRF"] = process_de_novo_result.process_GRF_result(self)
-            self.current_step = [4, 4]
+            self.current_progress = current_progress
+            self.save_checkpoint_file()
 
         # Module 4, Step 5: Combine TIRvish and GRF results
-        if self.module_step_execution_check(4, 5):
+        current_progress = [4, 5]
+        if self.progress_check(current_progress):
             print("Module 4, Step 5: Combine TIRvish and GRF results")
             process_de_novo_result.combine_de_novo_result(self)
-            self.current_step = [4, 5]
+            self.current_progress = current_progress
             self.save_processed_de_novo_result_checkpoint_file()
 
         # Module 4, Step 6: Prepare data
-        if self.module_step_execution_check(4, 6):
+        current_progress = [4, 6]
+        if self.progress_check(current_progress):
             print("Module 4, Step 6: Prepare data")
             self["base"] = prepare_data.execute(self)
-            self.current_step = [4, 6]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 7: CNN prediction
         print("Module 4, Step 7: CNN prediction")
-        if self.module_step_execution_check(4, 7):
+        current_progress = [4, 7]
+        if self.progress_check(current_progress):
             self["base"] = CNN_predict.execute(self)
-            self.current_step = [4, 7]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 8: Get FASTA sequences from CNN prediction
-        if self.module_step_execution_check(4, 8):
+        current_progress = [4, 8]
+        if self.progress_check(current_progress):
             print("Module 4, Step 8: Get FASTA sequences from CNN prediction")
             self["base"] = get_fasta_sequence.execute(self)
-            self.current_step = [4, 8]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 9: Check TIR and TSD
-        if self.module_step_execution_check(4, 9):
+        current_progress = [4, 9]
+        if self.progress_check(current_progress):
             print("Module 4, Step 9: Check TIR and TSD")
             self["base"] = check_TIR_TSD.execute(self, module)
-            self.current_step = [4, 9]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         # Module 4, Step 10: Save module result
-        if self.module_step_execution_check(4, 10):
+        current_progress = [4, 10]
+        if self.progress_check(current_progress):
             self["m4"] = self["base"]
             del self["base"]
-            self.current_step = [4, 10]
+            self.current_progress = current_progress
             self.save_checkpoint_file()
 
         print("########################################################## Module 4 Finished "

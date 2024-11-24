@@ -72,7 +72,7 @@ general_split_num_threshold = 5
 mix_split_percent_threshold = 0.05
 mix_short_seq_process_num = 2
 
-thread_core_ratio = 2
+process_core_ratio = 2
 
 
 def process_additional_args(additional_args: list) -> tuple:

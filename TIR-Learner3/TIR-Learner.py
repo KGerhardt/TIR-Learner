@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2024-04-05
+# 2024-11-24
 
 import os
 import sys
@@ -15,9 +15,9 @@ if True:  # noqa: E402
     from bin.main import TIRLearner
     from bin.const import process_additional_args
 
-VERSION = "v3.0.2"
+VERSION = "v3.0.4"
 INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
-        "published under GPLv3")
+        "released under GPLv3")
 
 if __name__ == "__main__":
 
@@ -29,9 +29,11 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
                         required=True)
     parser.add_argument("-l", "--length", help="Max length of TIR (Optional)", default=5000)
-    parser.add_argument("-t", "--processor", help="Number of processors allowed (Optional)", default=os.cpu_count())
+    parser.add_argument("-p", "-t", "--processor", help="Number of processors allowed (Optional)",
+                        default=os.cpu_count())
+    # -t means --thread, however multithreading is abandoned, so it's only for downward compatibility
     # TODO add pyboost, pystrict, gnu three parallel execution mode, also add more detailed help info
-    parser.add_argument('-m', '--mode', help=("Parallel execution mode, one of the following: \"pyboost\", "
+    parser.add_argument("-m", "--mode", help=("Parallel execution mode, one of the following: \"pyboost\", "
                                               "\"pystrict\" and \"gnup\" (Optional)"), default="pyboost")
     parser.add_argument("-w", "--working_dir", help="The path to the working directory (Optional). "
                                                     "An isolated sandbox directory for storing all the temporary files "
@@ -54,7 +56,8 @@ if __name__ == "__main__":
     parser.add_argument("--gt_path", help="Path to genometools program (Optional)",
                         default=os.path.dirname(shutil.which("gt")))
     parser.add_argument("-a", "--additional_args", help="Additional arguments (Optional). "
-                                                        "See documentation for more details.", default="")
+                                                        "See documentation for more details.",
+                        action="append", default=[])
     # see prog_const for what additional args are acceptable
 
     parsed_args = parser.parse_args()
@@ -78,7 +81,7 @@ if __name__ == "__main__":
 
     GRF_path = parsed_args.grf_path.replace('"', "")
     gt_path = parsed_args.gt_path.replace('"', "")
-    additional_args = process_additional_args(parsed_args.additional_args.split(" "))
+    additional_args = process_additional_args(parsed_args.additional_args)
     if len(additional_args) != 0:
         print(f"INFO: Additional args: {additional_args} captured.")
 

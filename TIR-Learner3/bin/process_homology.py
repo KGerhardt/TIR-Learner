@@ -1,10 +1,3 @@
-# import os
-# import subprocess
-# import multiprocessing as mp
-# import pandas as pd
-#
-# import prog_const
-
 from const import *
 
 blast_header_full_coverage = ("qacc", "sacc", "length", "pident", "gaps", "mismatch",

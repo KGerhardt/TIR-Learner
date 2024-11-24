@@ -1,8 +1,3 @@
-# import regex as re
-# import numpy as np
-# import pandas as pd
-# import swifter  # ATTENTION: DO NOT REMOVE "swifter" EVEN IF IDE SHOWS IT IS NOT USED!
-
 from const import *
 
 
@@ -45,10 +40,14 @@ def TSD_check(x):
 
 def process_GRF_result(TIRLearner_instance):
     df_in = TIRLearner_instance.working_df_dict["GRF"]
-    df = df_in[df_in["len"] >= 50].copy()
 
+    if df_in is None:
+        print("NOTICE: No TIR candidates was found by GRF.")
+        return None
+
+    df = df_in[df_in["len"] >= 50].copy()
     if df.shape[0] == 0:
-        print("NOTICE: No TIR found by GRF.")
+        print("NOTICE: No valid TIR candidates was found by GRF.")
         return None
 
     print("  Step 1/7: Getting TIR")
@@ -94,15 +93,23 @@ def process_GRF_result(TIRLearner_instance):
     df["id"] = ">" + df["id"]
     # df.to_csv(os.path.join("../", f"{genome_name}{spliter}processedGRFmite.fa"), sep='\n', header=False, index=False)
     # df.to_csv(TIRLearner_instance.processed_de_novo_result_file, sep='\n', header=False, index=False)
+
+    if df.shape[0] == 0:
+        print("NOTICE: No TIR was found by GRF.")
+        return None
     return df
 
 
 def process_TIRvish_result(TIRLearner_instance):
     df_in = TIRLearner_instance["TIRvish"]
-    df = df_in[df_in["end"] - df_in["start"] + 1 >= 50].copy()
 
+    if df_in is None:
+        print("NOTICE: No TIR candidates was found by TIRvish.")
+        return None
+
+    df = df_in[df_in["end"] - df_in["start"] + 1 >= 50].copy()
     if df.shape[0] == 0:
-        print("NOTICE: No TIR found by TIRvish.")
+        print("NOTICE: No valid TIR candidates was found by TIRvish.")
         return None
 
     print("  Step 1/5: Getting TIR")
@@ -141,11 +148,23 @@ def process_TIRvish_result(TIRLearner_instance):
 
     # print("  Step 6/6: Saving processed TIRvish")
     # df.to_csv(TIRLearner_instance.processed_de_novo_result_file, sep='\n', header=False, index=False)
+
+    if df.shape[0] == 0:
+        print("NOTICE: No TIR was found by TIRvish.")
+        return None
     return df
 
 
 def combine_de_novo_result(TIRLearner_instance):
-    df = pd.concat((TIRLearner_instance.get("TIRvish", None), TIRLearner_instance.get("GRF", None)), ignore_index=True)
+    try:
+        df = pd.concat((TIRLearner_instance.get("TIRvish"), TIRLearner_instance.get("GRF")), ignore_index=True)
+    except ValueError:
+        df = None
+
+    if df is None or df.shape[0] == 0:
+        raise SystemExit("ERROR: No TIR was found by TIRvish and GRF in the de novo process. "
+                         "Check your input file as well as arguments.")
+
     df.to_csv(TIRLearner_instance.processed_de_novo_result_file_name, sep='\n', header=False, index=False)
     del TIRLearner_instance["TIRvish"]
     del TIRLearner_instance["GRF"]

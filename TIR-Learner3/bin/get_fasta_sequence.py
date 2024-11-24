@@ -1,9 +1,3 @@
-# import multiprocessing as mp
-# # import subprocess
-# import pandas as pd
-# import swifter  # ATTENTION: DO NOT REMOVE "swifter" EVEN IF IDE SHOWS IT IS NOT USED!
-# from Bio import SeqIO
-
 from const import *
 
 
@@ -44,22 +38,26 @@ def get_start_end(genome_file, df_in, flag_verbose, length=200):
 #     return df
 
 
-def get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame,
-                                        genome_SeqRecord: SeqIO.SeqRecord, seqid: str, flag_verbose: bool):
+def __get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame,
+                                          genome_SeqRecord: SeqIO.SeqRecord, seqid: str, flag_verbose: bool):
     df = df_in[df_in["seqid"] == seqid].copy()
     if df.shape[0] == 0:
         return None
+
     df["seq"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: str(genome_SeqRecord.seq[x["start"]: x["end"]]), axis=1)
     return df.dropna()
 
 
 def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame, cpu_cores, flag_verbose):
+    if df_in is None or df_in.shape[0] == 0:
+        return None
+
     df = df_in.copy()
     genome_SeqIO_index = SeqIO.index(genome_file, "fasta")
     mp_args_list = [(df, genome_SeqIO_index[seqid], seqid, flag_verbose) for seqid in genome_SeqIO_index]
     with mp.Pool(int(cpu_cores)) as pool:
-        df_with_seq_list = pool.starmap(get_fasta_pieces_single_seqid_SeqIO, mp_args_list)
+        df_with_seq_list = pool.starmap(__get_fasta_pieces_single_seqid_SeqIO, mp_args_list)
     return pd.concat(df_with_seq_list).sort_index()
 
 
