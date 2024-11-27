@@ -35,22 +35,25 @@ TIR-Learner combines multiple approaches to identify and classify TIR transposon
 
 ## New in Version 3
 
-- **Improved Efficiency**: 
-  - Reduced I/O operations through in-memory data processing using Pandas DataFrames
-  - Multiprocessing support for both TIRvish and GRF tools
-  - Optimized sequence processing algorithms
-  
-- **Enhanced Compatibility**:
-  - Updated dependencies for better maintainability
-  - New conda recipe for easier installation
-  - Pytorch backend for the CNN model
+### Improved Efficiency
 
-- **New Features**:
-  - Automatic genome file pre-scanning and validation
-  - Checkpoint system for progress recovery
-  - Overlap detection and simplification in results
-  - Additional parallel execution modes
-  - Progress tracking and verbose output options
+- Reduced I/O operations through in-memory data processing using Pandas DataFrames
+- Multiprocessing support for both TIRvish and GRF tools
+- Optimized sequence processing algorithms
+  
+### Enhanced Compatibility
+
+- Updated dependencies for better maintainability
+- New conda recipe for easier installation
+- Pytorch backend for the CNN model
+
+### New Features
+
+- Automatic genome file pre-scanning and validation
+- Checkpoint system for progress recovery
+- Overlap detection and simplification in results
+- Additional parallel execution modes
+- Progress tracking and verbose output options
 
 ## Installation
 
@@ -84,8 +87,7 @@ Requirements:
 ## Usage
 
 ```bash
-TIR-Learner [-h] [-v] -f <GENOME_FILE> -s <SPECIES> [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR]
-                   [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
+TIR-Learner [-h] [-v] -f GENOME_FILE -s SPECIES [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR] [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
 ```
 
 ### Program Information
@@ -219,14 +221,10 @@ TIR-Learner -f ./test/genome.fa -s others -p 2 -l 5000 -c ./ -w ./test/ -d --ver
 
 <!-- ![TIR-Learner Workflow](./docs/TIR-Learner3_workflow.drawio.png) -->
 
-<br>
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./docs/TIR-Learner3_workflow_for light mode.drawio.png">
   <img alt="TIR-Learner v3 Workflow" src="./docs/TIR-Learner3_workflow_for dark mode.drawio.png">
 </picture>
-
-<br>
 
 TIR-Learner v3 consists of two main processing paths:
 
@@ -251,7 +249,7 @@ Uses a single module:
 
 ## Output Files
 
-TIR-Learner generates two main output files in the `TIR-Learner-Result` directory:
+TIR-Learner generates four output files in the `TIR-Learner-Result` directory:
 
 ### Raw Results
 
