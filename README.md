@@ -84,8 +84,7 @@ Requirements:
 ## Usage
 
 ```bash
-TIR-Learner [-h] [-v] -f <GENOME_FILE> -s <SPECIES> [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR]
-                   [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
+TIR-Learner [-h] [-v] -f <GENOME_FILE> -s <SPECIES> [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR] [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
 ```
 
 ### Program Information
