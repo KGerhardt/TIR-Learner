@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2024-11-24
+# 2025-01-08
 
 from const import *
 
@@ -35,7 +35,7 @@ def humanized_time(seconds: float) -> str:
 
 class TIRLearner:
     def __init__(self, genome_file_path: str, genome_name: str, species: str, TIR_length: int,
-                 cpu_cores: int, para_mode: str,
+                 processors: int, para_mode: str,
                  working_dir_path: str, output_dir_path: str, checkpoint_dir_input_path: str,
                  flag_verbose: bool, flag_debug: bool, GRF_path: str, gt_path: str, additional_args: tuple):
         self.genome_file_path = genome_file_path
@@ -43,7 +43,7 @@ class TIRLearner:
         self.species = species
 
         self.TIR_length = TIR_length
-        self.cpu_cores = cpu_cores
+        self.processors = processors
         self.para_mode = para_mode
 
         self.working_dir_path = working_dir_path
@@ -57,7 +57,7 @@ class TIRLearner:
         self.gt_path = gt_path
         self.additional_args = additional_args
 
-        self.processed_de_novo_result_file_name = f"{self.genome_name}{spliter}processed_de_novo_result.fa"
+        self.processed_de_novo_result_file_name = f"{self.genome_name}{SPLITER}processed_de_novo_result.fa"
 
         if CHECKPOINT_OFF not in additional_args:
             self.checkpoint_dir_output_path = os.path.join(
@@ -105,7 +105,7 @@ class TIRLearner:
         self.pre_scan_fasta_file()
         # print(os.getcwd())  # TODO ONLY FOR DEBUG REMOVE AFTER FINISHED
 
-        if self.species in ref_lib_available_species:
+        if self.species in REFLIB_AVAILABLE_SPECIES:
             self.execute_M1()
             self.execute_M2()
             self.execute_M3()
@@ -151,17 +151,17 @@ class TIRLearner:
                 print(f"WARN: Unknown character exist in sequence {record.id} will be replaced by \'N\'.")
                 record.seq = Seq(re.sub("[^ACGTN]", "N", sequence_str))
 
-            if spliter in record.id:
-                print((f"WARN: Sequence name \"{record.id}\" has reserved string \"{spliter}\", "
+            if SPLITER in record.id:
+                print((f"WARN: Sequence name \"{record.id}\" has reserved string \"{SPLITER}\", "
                        "which makes it incompatible with TIR-Learner and will be replaced with \'_\'."))
-                record.id = record.id.replace(spliter, "_")
+                record.id = record.id.replace(SPLITER, "_")
 
-            if len(sequence_str) < short_seq_len:
+            if len(sequence_str) < SHORT_SEQ_LEN:
                 self.genome_file_stat["short_seq_num"] += 1
 
             self.genome_file_stat["total_len"] += seq_len
             records.append(record)
-        checked_genome_file = f"{self.genome_name}{spliter}checked.fa"
+        checked_genome_file = f"{self.genome_name}{SPLITER}checked.fa"
         SeqIO.write(records, checked_genome_file, "fasta")
         self.genome_file_stat["short_seq_perc"] = (self.genome_file_stat["short_seq_num"] /
                                                    self.genome_file_stat["num"])
@@ -185,7 +185,7 @@ class TIRLearner:
         else:
             temp_dir = None
             os.makedirs(self.working_dir_path, exist_ok=True)
-        self.working_dir_path = os.path.join(self.working_dir_path, sandbox_dir_name)
+        self.working_dir_path = os.path.join(self.working_dir_path, SANDBOX_DIR_NAME)
         os.makedirs(self.working_dir_path, exist_ok=True)
         self.working_dir_path = os.path.abspath(self.working_dir_path)
         os.chdir(self.working_dir_path)

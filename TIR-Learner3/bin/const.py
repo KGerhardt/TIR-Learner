@@ -43,36 +43,35 @@ NO_PARALLEL = "NO_PARALLEL"
 SKIP_TIRVISH = "SKIP_TIRVISH"
 SKIP_GRF = "SKIP_GRF"
 
-spliter = "-+-"
-TIR_types = ("DTA", "DTC", "DTH", "DTM", "DTT")
+SPLITER = "-+-"
+TIR_SUPERFAMILIES = ("DTA", "DTC", "DTH", "DTM", "DTT")
 
-CNN_model_dir_path = "./cnn0912/cnn0912.keras"
-sandbox_dir_name = "[DONT_ALTER]TIR-Learner_sandbox"
-splited_fasta_tag = "SplitedFasta"
+CNN_MODEL_DIR_PATH = "./cnn0912/cnn0912.keras"
+SANDBOX_DIR_NAME = "[DONT_ALTER]TIR-Learner_sandbox"
+SPLIT_FASTA_TAG = "SplitFasta"
 
-program_root_dir_path = os.path.abspath(str(os.path.dirname(os.path.dirname(__file__))))
-CNN_model_dir_path = os.path.join(program_root_dir_path, CNN_model_dir_path)
+PROGRAM_ROOT_DIR_PATH = os.path.abspath(str(os.path.dirname(os.path.dirname(__file__))))
+CNN_MODEL_DIR_PATH = os.path.join(PROGRAM_ROOT_DIR_PATH, CNN_MODEL_DIR_PATH)
 
-ref_lib_dir_name = "RefLib"
-ref_lib_available_species = ("rice", "maize")
-ref_lib_file_dict = {species: [f"{species}_{TIR_type}_RefLib" for TIR_type in TIR_types]
-                     for species in ref_lib_available_species}
-ref_lib_dir_path = os.path.join(program_root_dir_path, ref_lib_dir_name)
+REFLIB_DIR_NAME = "RefLib"
+REFLIB_AVAILABLE_SPECIES = ("rice", "maize")
+REFLIB_FILE_DICT = {species: [f"{species}_{TIR_type}_RefLib" for TIR_type in TIR_SUPERFAMILIES]
+                    for species in REFLIB_AVAILABLE_SPECIES}
+REFLIB_DIR_PATH = os.path.join(PROGRAM_ROOT_DIR_PATH, REFLIB_DIR_NAME)
 
-TIRvish_split_seq_len = 5 * (10 ** 6)  # 5 mb
-TIRvish_overlap_seq_len = 50 * (10 ** 3)  # 50 kb
+DEFAULT_ALLOCATED_PROCESSORS = os.cpu_count() - 2 if os.cpu_count() > 2 else 1
+
+TIRVISH_SPLIT_SEQ_LEN = 5 * (10 ** 6)  # 5 mb
+TIRVISH_OVERLAP_SEQ_LEN = 50 * (10 ** 3)  # 50 kb
 
 # TODO only for debug
-# TIRvish_split_seq_len = 10000
-# TIRvish_overlap_seq_len = 10000
+# TIRvish_split_seq_len = 10 * (10 ** 3)
+# TIRvish_overlap_seq_len = 10 * (10 ** 3)
 
-
-short_seq_len = 2000
-general_split_num_threshold = 5
-mix_split_percent_threshold = 0.05
-mix_short_seq_process_num = 2
-
-process_core_ratio = 2
+SHORT_SEQ_LEN = 2000
+# GENERAL_SPLIT_NUM_THRESHOLD = 5
+# MIX_SPLIT_PERCENT_THRESHOLD = 0.05
+# MIX_SHORT_SEQ_PROCESS_NUM = 2
 
 
 def process_additional_args(additional_args: list) -> tuple:

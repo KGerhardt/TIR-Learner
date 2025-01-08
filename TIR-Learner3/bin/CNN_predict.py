@@ -90,6 +90,6 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 
     df = feature_encoding(df, TIRLearner_instance.flag_verbose)
 
-    df = predict(df, TIRLearner_instance.genome_file_path, CNN_model_dir_path)
+    df = predict(df, TIRLearner_instance.genome_file_path, CNN_MODEL_DIR_PATH)
 
     return postprocessing(df, TIRLearner_instance.flag_verbose)

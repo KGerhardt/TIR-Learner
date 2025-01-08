@@ -11,7 +11,7 @@ blast_type = {"length": int, "gaps": int, "mismatch": int,
 
 
 def process_homology_full_coverage(genome_name, species, TIR_type):
-    blast = f"{genome_name}{spliter}blast{spliter}{species}_{TIR_type}_RefLib"
+    blast = f"{genome_name}{SPLITER}blast{SPLITER}{species}_{TIR_type}_RefLib"
     df = None
     if os.path.exists(blast) and os.path.getsize(blast) != 0:
         # df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_full_coverage, dtype=blast_type, engine="pyarrow")
@@ -27,7 +27,7 @@ def process_homology_full_coverage(genome_name, species, TIR_type):
 
 
 def process_homology_eighty_similarity(file_name, species, TIR_type):
-    blast = f"{file_name}{spliter}blast{spliter}{species}_{TIR_type}_RefLib"
+    blast = f"{file_name}{SPLITER}blast{SPLITER}{species}_{TIR_type}_RefLib"
     df = None
     if os.path.exists(blast) and os.path.getsize(blast) != 0:
         # df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_eighty_similarity, dtype=blast_type, engine="pyarrow")
@@ -66,12 +66,12 @@ def process_result(df_list, species):
 def select_full_coverage(TIRLearner_instance) -> pd.DataFrame:
     print("Module 1, Step 2: Select 100% coverage entries from blast results")
     mp_args_list = [(TIRLearner_instance.genome_name, TIRLearner_instance.species, TIR_type)
-                    for TIR_type in TIR_types]
-    with mp.Pool(int(TIRLearner_instance.cpu_cores)) as pool:
+                    for TIR_type in TIR_SUPERFAMILIES]
+    with mp.Pool(int(TIRLearner_instance.processors)) as pool:
         df_list = pool.starmap(process_homology_full_coverage, mp_args_list)
     # subprocess.Popen(["rm", "-f", f"*{spliter}blast{spliter}*"])  # remove blast files
     if not TIRLearner_instance.flag_debug:
-        subprocess.Popen(["find", ".", "-name", f"*{spliter}blast{spliter}*", "-delete"])
+        subprocess.Popen(["find", ".", "-name", f"*{SPLITER}blast{SPLITER}*", "-delete"])
     # subprocess.Popen(f"rm -f *{spliter}blast{spliter}*", shell=True)
     return process_result(df_list, TIRLearner_instance.species)
 
@@ -79,9 +79,9 @@ def select_full_coverage(TIRLearner_instance) -> pd.DataFrame:
 def select_eighty_similarity(TIRLearner_instance) -> pd.DataFrame:
     print("Module 2, Step 7: Select 80% similar entries from blast results")
     mp_args_list = [(TIRLearner_instance.processed_de_novo_result_file_name, TIRLearner_instance.species, TIR_type)
-                    for TIR_type in TIR_types]
-    with mp.Pool(int(TIRLearner_instance.cpu_cores)) as pool:
+                    for TIR_type in TIR_SUPERFAMILIES]
+    with mp.Pool(int(TIRLearner_instance.processors)) as pool:
         df_list = pool.starmap(process_homology_eighty_similarity, mp_args_list)
     if not TIRLearner_instance.flag_debug:
-        subprocess.Popen(["find", ".", "-name", f"*{spliter}blast{spliter}*", "-delete"])
+        subprocess.Popen(["find", ".", "-name", f"*{SPLITER}blast{SPLITER}*", "-delete"])
     return process_result(df_list, TIRLearner_instance.species)

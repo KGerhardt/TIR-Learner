@@ -49,14 +49,14 @@ def __get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame,
     return df.dropna()
 
 
-def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame, cpu_cores, flag_verbose):
+def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame, processors, flag_verbose):
     if df_in is None or df_in.shape[0] == 0:
         return None
 
     df = df_in.copy()
     genome_SeqIO_index = SeqIO.index(genome_file, "fasta")
     mp_args_list = [(df, genome_SeqIO_index[seqid], seqid, flag_verbose) for seqid in genome_SeqIO_index]
-    with mp.Pool(int(cpu_cores)) as pool:
+    with mp.Pool(processors) as pool:
         df_with_seq_list = pool.starmap(__get_fasta_pieces_single_seqid_SeqIO, mp_args_list)
     return pd.concat(df_with_seq_list).sort_index()
 
@@ -65,5 +65,5 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
     df = get_start_end(TIRLearner_instance.genome_file_path, TIRLearner_instance["base"],
                        TIRLearner_instance.flag_verbose)
     # return get_fasta_pieces_bedtools(genome_file, df)
-    return get_fasta_pieces_SeqIO(TIRLearner_instance.genome_file_path, df, TIRLearner_instance.cpu_cores,
+    return get_fasta_pieces_SeqIO(TIRLearner_instance.genome_file_path, df, TIRLearner_instance.processors,
                                   TIRLearner_instance.flag_verbose)

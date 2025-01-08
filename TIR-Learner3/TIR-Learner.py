@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2024-11-24
+# 2025-01-08
 
 import os
 import sys
@@ -13,9 +13,9 @@ if True:  # noqa: E402
     import shutil
 
     from bin.main import TIRLearner
-    from bin.const import process_additional_args
+    from bin.const import DEFAULT_ALLOCATED_PROCESSORS, process_additional_args
 
-VERSION = "v3.0.4"
+VERSION = "v3.0.5"
 INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
         "released under GPLv3")
 
@@ -28,13 +28,13 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--genome_name", help="Genome name (Optional)", default="TIR-Learner")
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
                         required=True)
-    parser.add_argument("-l", "--length", help="Max length of TIR (Optional)", default=5000)
+    parser.add_argument("-l", "--length", help="Max length of TIR (Optional)", type=int, default=5000)
     parser.add_argument("-p", "-t", "--processor", help="Number of processors allowed (Optional)",
-                        default=os.cpu_count())
+                        type=int, default=DEFAULT_ALLOCATED_PROCESSORS)
     # -t means --thread, however multithreading is abandoned, so it's only for downward compatibility
-    # TODO add pyboost, pystrict, gnu three parallel execution mode, also add more detailed help info
-    parser.add_argument("-m", "--mode", help=("Parallel execution mode, one of the following: \"pyboost\", "
-                                              "\"pystrict\" and \"gnup\" (Optional)"), default="pyboost")
+    # TODO add py and gnup two parallel execution mode, also add more detailed help info
+    parser.add_argument("-m", "--mode", help=("Parallel execution mode, one of the following: \"py\" "
+                                              "and \"gnup\" (Optional)"), default="py")
     parser.add_argument("-w", "--working_dir", help="The path to the working directory (Optional). "
                                                     "An isolated sandbox directory for storing all the temporary files "
                                                     "will be created in the working directory. This sandbox directory "
@@ -48,9 +48,10 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", help="Verbose mode (Optional). "
                                           "Will show interactive progress bar and more execution details.",
                         action="store_true")
-    parser.add_argument("-d", "--debug", help="Debug mode (Optional). If activated, data for all completed steps "
-                                              "will be stored in the checkpoint file. Meanwhile, the temporary files "
-                                              "in the working directory will also be kept.", action="store_true")
+    parser.add_argument("-d", "--debug", help="Debug mode (Optional). If activated, data for all "
+                                              "completed steps will be stored in the checkpoint file. Meanwhile, "
+                                              "the temporary files in the working directory will also be kept.",
+                        action="store_true")
     parser.add_argument("--grf_path", help="Path to GRF program (Optional)",
                         default=os.path.dirname(shutil.which("grf-main")))
     parser.add_argument("--gt_path", help="Path to genometools program (Optional)",
@@ -66,8 +67,8 @@ if __name__ == "__main__":
     genome_name = parsed_args.genome_name
     species = parsed_args.species
 
-    TIR_length = int(parsed_args.length)
-    cpu_cores = int(parsed_args.processor)
+    TIR_length = parsed_args.length
+    processors = parsed_args.processor
     GRF_mode = parsed_args.mode
 
     working_dir = parsed_args.working_dir
@@ -96,5 +97,5 @@ if __name__ == "__main__":
     # ==================================================================================================================
 
     TIRLearner_instance = TIRLearner(genome_file, genome_name, species, TIR_length,
-                                     cpu_cores, GRF_mode, working_dir, output_dir, checkpoint_input,
+                                     processors, GRF_mode, working_dir, output_dir, checkpoint_input,
                                      flag_verbose, flag_debug, GRF_path, gt_path, additional_args)

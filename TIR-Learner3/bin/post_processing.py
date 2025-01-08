@@ -35,7 +35,7 @@ def format_df_in_gff3_format(df_in, flag_verbose):
     df = df_in.copy()
     df["attributes"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: (f"TIR:{x['TIR1']}_{x['TIR2']}_{x['TIR_percent']}_"
-                   f"TSD:{x['TSD1']}_{x['TSD2']}_{x['TSD_percent']}{spliter}{x['len']}"), axis=1)
+                   f"TSD:{x['TSD1']}_{x['TSD2']}_{x['TSD_percent']}{SPLITER}{x['len']}"), axis=1)
     df = df.loc[:, ["seqid", "source", "type", "sstart", "send", "attributes"]]
     df.insert(5, "phase", ".")
     df.insert(5, "strand", ".")
@@ -179,12 +179,12 @@ def remove_overlap(df_in, flag_verbose):
 # ======================================================================================================================
 
 
-def get_final_fasta_file(df_in, genome_file, genome_name, cpu_cores, flag_verbose, file_path):
+def get_final_fasta_file(df_in, genome_file, genome_name, processors, flag_verbose, file_path):
     df = df_in.copy()
     df["name"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: f">{genome_name}_{x['seqid']}_{x['sstart']}_{x['send']}_{x['type']}_{x['attributes']}", axis=1)
     df.rename(columns={"sstart": "start", "send": "end"}, inplace=True)
-    df = get_fasta_pieces_SeqIO(genome_file, df, cpu_cores, flag_verbose)
+    df = get_fasta_pieces_SeqIO(genome_file, df, processors, flag_verbose)
     df = df.loc[:, ["name", "seq"]]
     df.to_csv(file_path, index=False, header=False, sep="\n")
 
@@ -193,7 +193,7 @@ def execute(TIRLearner_instance, raw_result_df_list):
     genome_file = TIRLearner_instance.genome_file_path
     genome_name = TIRLearner_instance.genome_name
     output_dir = TIRLearner_instance.output_dir_path
-    cpu_cores = TIRLearner_instance.cpu_cores
+    processors = TIRLearner_instance.processors
     flag_verbose = TIRLearner_instance.flag_verbose
 
     print("############################################################ Post Processing  "
@@ -214,7 +214,7 @@ def execute(TIRLearner_instance, raw_result_df_list):
                    sep="\t")
 
     print("  Step 3/6: Generating raw fasta file")
-    get_final_fasta_file(df_gff3, genome_file, genome_name, cpu_cores, flag_verbose,
+    get_final_fasta_file(df_gff3, genome_file, genome_name, processors, flag_verbose,
                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn.fa"))
     del df_gff3
 
@@ -226,7 +226,7 @@ def execute(TIRLearner_instance, raw_result_df_list):
     print("  Step 4/6: Removing the shorter one among two overlapped sequences")
     if not flag_verbose:
         print("    ", end="")
-    with mp.Pool(int(cpu_cores)) as pool:
+    with mp.Pool(processors) as pool:
         df_filtered_list = pool.starmap(remove_overlap, df_combined_mp)
     if not flag_verbose:
         print('\n', end="")
@@ -239,6 +239,6 @@ def execute(TIRLearner_instance, raw_result_df_list):
                             header=False, sep="\t")
 
     print("  Step 6/6: Generating final fasta file")
-    get_final_fasta_file(df_gff3_filtered, genome_file, genome_name, cpu_cores, flag_verbose,
+    get_final_fasta_file(df_gff3_filtered, genome_file, genome_name, processors, flag_verbose,
                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn_filter.fa"))
     del df_gff3_filtered
