@@ -1,0 +1,4 @@
+2a481b9809c4be7750936ab1b9b886ca6725fc11a2346b0eed6f9ad68337edf0  TIR-Learner-Result/TIR-Learner_FinalAnn.fa
+ecedf27a3b5c201c695da862eb86f592aabf839563b1cc106b73c5ca14e2ec3e  TIR-Learner-Result/TIR-Learner_FinalAnn.gff3
+9ab07325f65703e3cffe211df01792c5b9d907842c75cd84049630230b1ec20c  TIR-Learner-Result/TIR-Learner_FinalAnn_filter.fa
+4e72368e1ca1c8eb011e5dd8d92cc38d351daa68219065c2f24ba7b812505e8e  TIR-Learner-Result/TIR-Learner_FinalAnn_filter.gff3

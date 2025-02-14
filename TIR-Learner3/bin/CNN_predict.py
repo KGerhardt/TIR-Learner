@@ -1,21 +1,21 @@
 from const import *
 
 
-def get_sequence_fragment(x, featureSize=200):
+def get_sequence_fragment(x: pd.Series, feature_size: int = 200) -> str:
     seq = x["seq"]
     len_seq = len(seq)
-    if len_seq >= featureSize * 2:
-        return seq[0:featureSize] + seq[-featureSize:]
+    if len_seq >= feature_size * 2:
+        return seq[0:feature_size] + seq[-feature_size:]
     s1 = seq[0:int(len_seq / 2)]
     s2 = seq[int(len_seq / 2):]
-    n1 = "N" * (featureSize - len(s1))
-    n2 = "N" * (featureSize - len(s2))
+    n1 = "N" * (feature_size - len(s1))
+    n2 = "N" * (feature_size - len(s2))
     s1 = s1 + n1
     s2 = n2 + s2
     return s1 + s2
 
 
-def feature_encoding(df_in, flag_verbose):
+def feature_encoding(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     feature_int_encoder = LabelEncoder()
     voc = ["A", "C", "G", "T", "N"]
     num_classes = len(voc)
@@ -26,17 +26,16 @@ def feature_encoding(df_in, flag_verbose):
     df["int_enc"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: np.array(feature_int_encoder.transform(list(x["seq_frag"]))).reshape(-1, 1), axis=1)
     df = df.drop(columns="seq_frag")
+
     print("  Step 3/7: One-Hot Encoding - Converting class vectors to binary class matrices")
     df["feature"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: keras.utils.to_categorical(x["int_enc"], num_classes=num_classes), axis=1)
     df = df.drop(columns="int_enc")
 
-    # inputfeatures = np.array(input_features)
-    # np.save(file + spliter + "features.npy", inputfeatures)
     return df
 
 
-def predict(df_in, genome_file, path_to_model):
+def predict(df_in: pd.DataFrame, genome_file: str, path_to_model: str) -> Optional[pd.DataFrame]:
     model = keras.models.load_model(path_to_model)
     pre_feature = df_in["feature"].to_numpy()
     df = df_in.drop(columns="feature")
@@ -67,7 +66,7 @@ def predict(df_in, genome_file, path_to_model):
     return df
 
 
-def postprocessing(df_in, flag_verbose):
+def postprocessing(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     df = df_in.loc[:, ["id", "TIR_type"]]
     df = df[df["TIR_type"] != "NonTIR"].reset_index(drop=True)
     print("  Step 5/7: Retrieving sequence ID")

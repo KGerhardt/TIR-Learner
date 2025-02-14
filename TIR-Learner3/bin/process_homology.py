@@ -10,14 +10,12 @@ blast_type = {"length": int, "gaps": int, "mismatch": int,
               "qstart": int, "qend": int, "sstart": int, "send": int}
 
 
-def process_homology_full_coverage(genome_name, species, TIR_type):
-    blast = f"{genome_name}{SPLITER}blast{SPLITER}{species}_{TIR_type}_RefLib"
+def process_homology_full_coverage(genome_name: str, species: str, TIR_type: str) -> Optional[pd.DataFrame]:
+    blast = f"{genome_name}{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}{species}_{TIR_type}_RefLib"
     df = None
     if os.path.exists(blast) and os.path.getsize(blast) != 0:
-        # df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_full_coverage, dtype=blast_type, engine="pyarrow")
         df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_full_coverage, dtype=blast_type, engine='c',
                          memory_map=True)
-        # df["sacc"] = df["sacc"].astype(str)
         df = df.loc[(df["qcovhsp"] == 100) & (df["pident"] >= 80)].reset_index(drop=True)
         df = df.sort_values(["sacc", "sstart", "send", "qcovhsp", "pident"],
                             ascending=[True, True, True, True, True], ignore_index=True)
@@ -26,11 +24,10 @@ def process_homology_full_coverage(genome_name, species, TIR_type):
     return df
 
 
-def process_homology_eighty_similarity(file_name, species, TIR_type):
-    blast = f"{file_name}{SPLITER}blast{SPLITER}{species}_{TIR_type}_RefLib"
+def process_homology_eighty_similarity(file_name: str, species: str, TIR_type: str) -> Optional[pd.DataFrame]:
+    blast = f"{file_name}{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}{species}_{TIR_type}_RefLib"
     df = None
     if os.path.exists(blast) and os.path.getsize(blast) != 0:
-        # df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_eighty_similarity, dtype=blast_type, engine="pyarrow")
         df = pd.read_csv(blast, sep='\t', header=None, names=blast_header_eighty_similarity, dtype=blast_type,
                          engine='c', memory_map=True)
         df = df.loc[(df["qcovhsp"] >= 80) & (df["pident"] >= 80)].reset_index(drop=True)
@@ -46,7 +43,7 @@ def process_homology_eighty_similarity(file_name, species, TIR_type):
     return df
 
 
-def process_result(df_list, species):
+def process_result(df_list: list[pd.DataFrame], species: str) -> pd.DataFrame:
     try:
         df = pd.concat(df_list, ignore_index=True).iloc[:, [0, 1, 2, 9, 10]].copy()
     except ValueError:
@@ -71,7 +68,7 @@ def select_full_coverage(TIRLearner_instance) -> pd.DataFrame:
         df_list = pool.starmap(process_homology_full_coverage, mp_args_list)
     # subprocess.Popen(["rm", "-f", f"*{spliter}blast{spliter}*"])  # remove blast files
     if not TIRLearner_instance.flag_debug:
-        subprocess.Popen(["find", ".", "-name", f"*{SPLITER}blast{SPLITER}*", "-delete"])
+        subprocess.Popen(["find", ".", "-name", f"*{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}*", "-delete"])
     # subprocess.Popen(f"rm -f *{spliter}blast{spliter}*", shell=True)
     return process_result(df_list, TIRLearner_instance.species)
 
@@ -83,5 +80,5 @@ def select_eighty_similarity(TIRLearner_instance) -> pd.DataFrame:
     with mp.Pool(int(TIRLearner_instance.processors)) as pool:
         df_list = pool.starmap(process_homology_eighty_similarity, mp_args_list)
     if not TIRLearner_instance.flag_debug:
-        subprocess.Popen(["find", ".", "-name", f"*{SPLITER}blast{SPLITER}*", "-delete"])
+        subprocess.Popen(["find", ".", "-name", f"*{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}*", "-delete"])
     return process_result(df_list, TIRLearner_instance.species)

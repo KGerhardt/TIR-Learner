@@ -1,7 +1,7 @@
 from const import *
 
 
-def get_start_end(genome_file, df_in, flag_verbose, length=200):
+def get_start_end(genome_file: str, df_in: pd.DataFrame, flag_verbose: bool, length: int = 200) -> pd.DataFrame:
     df = df_in.copy()
     df["start"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: min(x["sstart"], x["send"]), axis=1)
     df["end"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: max(x["sstart"], x["send"]), axis=1)
@@ -25,21 +25,8 @@ def get_start_end(genome_file, df_in, flag_verbose, length=200):
     return df
 
 
-# def get_fasta_pieces_bedtools(genome_file, df_in: pd.DataFrame):
-#     df = df_in.reset_index(drop=True)
-#     # df_bed = df.iloc[:, [2, 5, 6]]
-#     df.loc[:, ["seqid", "start", "end"]].to_csv("bed.txt", sep='\t', header=False, index=False)
-#     # subprocess.Popen(f"bedtools getfasta -fo seq_from_bed.txt -fi {genome_file} -bed bed.txt", ).wait()
-#     subprocess.Popen(["bedtools", "getfasta", "-fo", "seq_from_bed.txt", "-fi", genome_file, "-bed", "bed.txt"]).wait()
-#     # bed_series = pd.read_csv("seq_from_bed.txt", header=None, engine="pyarrow").squeeze()
-#     bed_series = pd.read_csv("seq_from_bed.txt", header=None, engine='c', memory_map=True).squeeze()
-#     subprocess.Popen(["find", ".", "-name", "*bed.txt", "-delete"])
-#     df["seq"] = bed_series[1::2].reset_index(drop=True)
-#     return df
-
-
-def __get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame,
-                                          genome_SeqRecord: SeqIO.SeqRecord, seqid: str, flag_verbose: bool):
+def __get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame, genome_SeqRecord: SeqIO.SeqRecord, seqid: str,
+                                          flag_verbose: bool) -> Optional[pd.DataFrame]:
     df = df_in[df_in["seqid"] == seqid].copy()
     if df.shape[0] == 0:
         return None
@@ -49,7 +36,8 @@ def __get_fasta_pieces_single_seqid_SeqIO(df_in: pd.DataFrame,
     return df.dropna()
 
 
-def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame, processors, flag_verbose):
+def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame,
+                           processors: int, flag_verbose: bool) -> Optional[pd.DataFrame]:
     if df_in is None or df_in.shape[0] == 0:
         return None
 
@@ -64,6 +52,5 @@ def get_fasta_pieces_SeqIO(genome_file: str, df_in: pd.DataFrame, processors, fl
 def execute(TIRLearner_instance) -> pd.DataFrame:
     df = get_start_end(TIRLearner_instance.genome_file_path, TIRLearner_instance["base"],
                        TIRLearner_instance.flag_verbose)
-    # return get_fasta_pieces_bedtools(genome_file, df)
     return get_fasta_pieces_SeqIO(TIRLearner_instance.genome_file_path, df, TIRLearner_instance.processors,
                                   TIRLearner_instance.flag_verbose)

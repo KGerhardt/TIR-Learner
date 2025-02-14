@@ -3,7 +3,7 @@ from const import *
 from get_fasta_sequence import get_fasta_pieces_SeqIO
 
 
-def split_sequence_evenly(seq_record, split_seq_len, overlap_seq_len):
+def split_sequence_evenly(seq_record: SeqRecord, split_seq_len: int, overlap_seq_len: int) -> list[SeqRecord]:
     """
     Evenly splits a sequence into several segmented sequences, each segment has a maximum length of
     the length threshold split_seq_len.
@@ -61,7 +61,7 @@ def split_sequence_evenly(seq_record, split_seq_len, overlap_seq_len):
 #     return split_fasta_files_list
 
 
-def save_fasta_file(seq_record):
+def save_fasta_file(seq_record: SeqRecord) -> str:
     fasta_file_name = f"{seq_record.id}.fasta"
     working_dir_name = f"{fasta_file_name}_{SPLIT_FASTA_TAG}"
     os.makedirs(working_dir_name, exist_ok=True)
@@ -70,8 +70,7 @@ def save_fasta_file(seq_record):
     return fasta_file_path
 
 
-def process_fasta(genome_file, split_seq_len, overlap_seq_len):
-    # TODO: Universal process fasta function for both TIRvish and GRF?
+def process_fasta(genome_file: str, split_seq_len: int, overlap_seq_len: int) -> list[str]:
     """
     Write each sequence in the FASTA file into separate FASTA files and further split the sequence into segments if
     when needed based on a length threshold split_seq_len.
@@ -91,8 +90,7 @@ def process_fasta(genome_file, split_seq_len, overlap_seq_len):
     return split_fasta_files_path_list
 
 
-def retrieve_split_sequence_offset(segment_position, split_seq_len, overlap_seq_len):
-    offset = 0
+def retrieve_split_sequence_offset(segment_position: str, split_seq_len: int, overlap_seq_len: int) -> int:
     if split_seq_len == 0:
         raise ValueError("When split happens, split_seq_len cannot be zero.")
     try:
@@ -106,15 +104,14 @@ def retrieve_split_sequence_offset(segment_position, split_seq_len, overlap_seq_
     return offset
 
 
-def TIRvish(genome_file, genome_name, TIR_length, gt_path):
-    # print(os.listdir())  # TODO only for debug
+def TIRvish(genome_file: str, genome_name: str, TIR_length: int, gt_path: str) -> str:
     gt_bin_path = os.path.join(gt_path, "gt")
-    gt_index_file_name = genome_name + SPLITER + "gt_index"
+    gt_index_file_name = genome_name + FILE_NAME_SPLITER + "gt_index"
     subprocess.Popen(
         [gt_bin_path, "suffixerator", "-db", genome_file, "-indexname", gt_index_file_name,
          "-tis", "-suf", "-lcp", "-des", "-ssp", "-sds", "-dna", "-mirrored"]).wait()
 
-    TIRvish_result_gff3_file_name = f"{genome_name}{SPLITER}TIRvish.gff3"
+    TIRvish_result_gff3_file_name = f"{genome_name}{FILE_NAME_SPLITER}TIRvish.gff3"
     gt_tirvish = (f"\"{gt_bin_path}\" tirvish -index {gt_index_file_name} -seed 20 -mintirlen 10 -maxtirlen 1000 "
                   f"-mintirdist 10 -maxtirdist {str(TIR_length)} -similar 80 -mintsd 2 -maxtsd 11 "
                   f"-vic 13 -seqids \"yes\" > {TIRvish_result_gff3_file_name}")
@@ -123,7 +120,7 @@ def TIRvish(genome_file, genome_name, TIR_length, gt_path):
     return TIRvish_result_gff3_file_name
 
 
-def TIRvish_mp(genome_file_path, genome_name, TIR_length, gt_path):
+def TIRvish_mp(genome_file_path: str, genome_name: str, TIR_length: int, gt_path: str) -> str:
     TIRvish_working_dir = os.path.dirname(genome_file_path)
     genome_file_name = os.path.basename(genome_file_path)
     os.chdir(TIRvish_working_dir)
@@ -132,7 +129,8 @@ def TIRvish_mp(genome_file_path, genome_name, TIR_length, gt_path):
     return os.path.join(TIRvish_working_dir, TIRvish_result_gff3_file_name)
 
 
-def get_TIRvish_result_df(TIRvish_result_gff3_file_path, flag_debug, split_seq_len=0, overlap_seq_len=0):
+def get_TIRvish_result_df(TIRvish_result_gff3_file_path: str, flag_debug: bool,
+                          split_seq_len: int = 0, overlap_seq_len: int = 0) -> pd.DataFrame:
     df_data_dict = {"seqid": [], "start": [], "end": [], "TIR1_start": [], "TIR1_end": [], "TIR2_start": [],
                     "TIR2_end": [], "id": []}
     df_type = {"start": int, "end": int, "TIR1_start": int, "TIR1_end": int, "TIR2_start": int, "TIR2_end": int}
@@ -180,14 +178,17 @@ def get_TIRvish_result_df(TIRvish_result_gff3_file_path, flag_debug, split_seq_l
     return pd.DataFrame(df_data_dict).astype(df_type)
 
 
-def run_TIRvish_native(genome_file, genome_name, TIR_length, flag_debug, gt_path):
+def run_TIRvish_native(genome_file: str, genome_name: str, TIR_length: int,
+                       flag_debug: bool, gt_path: str) -> pd.DataFrame:
     print("  Step 1/2: Executing TIRvish in native mode")
     TIRvish_result_gff3_file_name = TIRvish(genome_file, genome_name, TIR_length, gt_path)
     print("  Step 2/2: Getting TIRvish result")
     return get_TIRvish_result_df(TIRvish_result_gff3_file_name, flag_debug)
 
 
-def run_TIRvish_py_para(genome_file, genome_name, TIR_length, processors, flag_debug, gt_path, fasta_files_path_list):
+def run_TIRvish_py_para(genome_file: str, genome_name: str, TIR_length: int,
+                        processors: int, flag_debug: bool, gt_path: str,
+                        fasta_files_path_list: list[str]) -> pd.DataFrame:
     os.makedirs(f"{SPLIT_FASTA_TAG}_mp", exist_ok=True)
     os.chdir(f"./{SPLIT_FASTA_TAG}_mp")
 
@@ -204,13 +205,12 @@ def run_TIRvish_py_para(genome_file, genome_name, TIR_length, processors, flag_d
                     TIRvish_result_gff3_file_path_list]
     with mp.Pool(processors) as pool:
         TIRvish_result_df_list = pool.starmap(get_TIRvish_result_df, mp_args_list)
-    # TODO Unified cpu usage representation in code (processors, num_processes, num_threads)
 
     os.chdir("../")
     return pd.concat(TIRvish_result_df_list).reset_index(drop=True)
 
 
-def execute(TIRLearner_instance):
+def execute(TIRLearner_instance) -> pd.DataFrame:
     genome_file = TIRLearner_instance.genome_file_path
     genome_name = TIRLearner_instance.genome_name
     TIR_length = TIRLearner_instance.TIR_length

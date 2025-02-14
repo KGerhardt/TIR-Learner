@@ -13,11 +13,13 @@ if True:  # noqa: E402
     import json
     import math
     import multiprocessing as mp
+    import psutil
     import regex as re
     import shutil
     import subprocess
     import tempfile
     import time
+    from typing import Union, Optional
 
     import numpy as np
     import pandas as pd
@@ -43,7 +45,9 @@ NO_PARALLEL = "NO_PARALLEL"
 SKIP_TIRVISH = "SKIP_TIRVISH"
 SKIP_GRF = "SKIP_GRF"
 
-SPLITER = "-+-"
+FILE_NAME_SPLITER = "-+-"
+CONSOLE_SPLITER_LEN = 32
+
 TIR_SUPERFAMILIES = ("DTA", "DTC", "DTH", "DTM", "DTT")
 
 CNN_MODEL_DIR_PATH = "./cnn0912/cnn0912.keras"
@@ -74,7 +78,7 @@ SHORT_SEQ_LEN = 2000
 # MIX_SHORT_SEQ_PROCESS_NUM = 2
 
 
-def process_additional_args(additional_args: list) -> tuple:
+def process_additional_args(additional_args: list[str]) -> tuple[str]:
     if additional_args == [""]:
         return tuple()
     processed_additional_args = tuple(map(str.upper, additional_args))

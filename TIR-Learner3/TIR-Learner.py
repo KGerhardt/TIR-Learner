@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Tianyu Lu (tlu83@wisc.edu)
-# 2025-01-08
+# 2025-02-13
 
 import os
 import sys
@@ -15,11 +15,11 @@ if True:  # noqa: E402
     from bin.main import TIRLearner
     from bin.const import DEFAULT_ALLOCATED_PROCESSORS, process_additional_args
 
-VERSION = "v3.0.5"
+VERSION = "v3.0.6"
 INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
         "released under GPLv3")
 
-if __name__ == "__main__":
+def main() -> TIRLearner:
 
     # ================================================ argument parsing ================================================
     parser = argparse.ArgumentParser(prog="TIR-Learner")
@@ -96,6 +96,9 @@ if __name__ == "__main__":
         checkpoint_input = os.path.abspath(checkpoint_input)
     # ==================================================================================================================
 
-    TIRLearner_instance = TIRLearner(genome_file, genome_name, species, TIR_length,
-                                     processors, GRF_mode, working_dir, output_dir, checkpoint_input,
-                                     flag_verbose, flag_debug, GRF_path, gt_path, additional_args)
+    return TIRLearner(genome_file, genome_name, species, TIR_length,
+                      processors, GRF_mode, working_dir, output_dir, checkpoint_input,
+                      flag_verbose, flag_debug, GRF_path, gt_path, additional_args)
+
+if __name__ == "__main__":
+    TIRLearner_instance = main()

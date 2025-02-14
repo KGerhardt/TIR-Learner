@@ -26,5 +26,8 @@ jobs:
           activate-environment: tir-learner
           environment-file: environment.yml
           auto-activate-base: false
-      - run: python3 ./TIR-Learner3/TIR-Learner.py --version
-      - run: python3 ./TIR-Learner3/TIR-Learner.py -f test/genome.fa -s others -t 2 -l 5000 -c ./ -o results
+      - run: python3 TIR-Learner3/TIR-Learner.py --version
+      - run: |
+          python3 TIR-Learner3/TIR-Learner.py -f test/genome.fa -s others -t 2 -l 5000 -o ./
+          sha256sum TIR-Learner-Result/* > hash.txt
+          cmp hash.txt test/hash.txt --silent

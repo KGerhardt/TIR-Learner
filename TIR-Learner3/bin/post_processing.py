@@ -4,7 +4,7 @@ from get_fasta_sequence import get_fasta_pieces_SeqIO
 from process_de_novo_result import TA_repeats_check
 
 
-def combine_all(df_list):
+def combine_all(df_list: list[pd.DataFrame]) -> Optional[pd.DataFrame]:
     if len(df_list) > 1:
         try:
             df = pd.concat(df_list, ignore_index=True)
@@ -25,17 +25,14 @@ def combine_all(df_list):
     df = TA_repeats_check(df, "TIR_pair_str")
     df = df.drop(columns="TIR_pair_str")
 
-    # df["TArepeats_TIR_check"] = df.swifter.progress_bar(flag_verbose).apply(
-    #     lambda x: np.nan if TA_repeats(x["TIR"]) else False, axis=1)
-    # df = df.dropna(ignore_index=True).drop(columns="TArepeats_TIR_check")
     return df
 
 
-def format_df_in_gff3_format(df_in, flag_verbose):
+def format_df_in_gff3_format(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     df = df_in.copy()
     df["attributes"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: (f"TIR:{x['TIR1']}_{x['TIR2']}_{x['TIR_percent']}_"
-                   f"TSD:{x['TSD1']}_{x['TSD2']}_{x['TSD_percent']}{SPLITER}{x['len']}"), axis=1)
+                   f"TSD:{x['TSD1']}_{x['TSD2']}_{x['TSD_percent']}{FILE_NAME_SPLITER}{x['len']}"), axis=1)
     df = df.loc[:, ["seqid", "source", "type", "sstart", "send", "attributes"]]
     df.insert(5, "phase", ".")
     df.insert(5, "strand", ".")
@@ -45,7 +42,7 @@ def format_df_in_gff3_format(df_in, flag_verbose):
 
 # =============================== Remove the Shorter One Among Two Overlapped Sequences ================================
 
-def check_element_overlap(x1, y1, x2, y2):
+def check_element_overlap(x1: int, y1: int, x2: int, y2: int) -> bool:
     """Checking sequences overlap only among element part of sequences
 
     Precondition: x1 < x2, y1 != y2
@@ -70,7 +67,7 @@ def check_element_overlap(x1, y1, x2, y2):
     return False
 
 
-def check_element_TIR_overlap(x1, y1, x2, y2, m1, n1, m2, n2):
+def check_element_TIR_overlap(x1: int, y1: int, x2: int, y2: int, m1: int, n1: int, m2: int, n2: int) -> bool:
     """Checking sequences overlap among element part and TIR part of sequences
 
     Precondition: x1 < x2, y1 < x2 or y1 > y2
@@ -131,7 +128,8 @@ def check_element_TIR_overlap(x1, y1, x2, y2, m1, n1, m2, n2):
 #     df = df.drop(columns=["TIR_len", "tstart", "tend"])
 #     return df
 
-def remove_overlap(df_in, flag_verbose):
+
+def remove_overlap(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     """
     TODO documentation needed
     :param df_in:
@@ -164,7 +162,6 @@ def remove_overlap(df_in, flag_verbose):
                                           df.iloc[ptr2, idx_sstart], df.iloc[ptr2, idx_send],
                                           df.iloc[ptr1, idx_tstart], df.iloc[ptr1, idx_tend],
                                           df.iloc[ptr2, idx_tstart], df.iloc[ptr2, idx_tend])):
-            # dropped_index_list.append(df.iloc[[ptr1, ptr2], df.columns.get_loc("len")].idxmin())
             dropped_index_list.append(df.loc[[ptr1, ptr2], "len"].idxmin())
             if flag_verbose:
                 print(f"      Sequence {dropped_index_list[-1]} of genome {seqid} removed")
@@ -179,7 +176,8 @@ def remove_overlap(df_in, flag_verbose):
 # ======================================================================================================================
 
 
-def get_final_fasta_file(df_in, genome_file, genome_name, processors, flag_verbose, file_path):
+def get_final_fasta_file(df_in: pd.DataFrame, genome_file: str, genome_name: str,
+                         processors: int, flag_verbose: bool, file_path: str):
     df = df_in.copy()
     df["name"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: f">{genome_name}_{x['seqid']}_{x['sstart']}_{x['send']}_{x['type']}_{x['attributes']}", axis=1)
@@ -189,15 +187,14 @@ def get_final_fasta_file(df_in, genome_file, genome_name, processors, flag_verbo
     df.to_csv(file_path, index=False, header=False, sep="\n")
 
 
-def execute(TIRLearner_instance, raw_result_df_list):
+def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
     genome_file = TIRLearner_instance.genome_file_path
     genome_name = TIRLearner_instance.genome_name
     output_dir = TIRLearner_instance.output_dir_path
     processors = TIRLearner_instance.processors
     flag_verbose = TIRLearner_instance.flag_verbose
 
-    print("############################################################ Post Processing  "
-          "#########################################################")
+    print('#' * CONSOLE_SPLITER_LEN + " Post Processing " + '#' * CONSOLE_SPLITER_LEN)
 
     print("  Step 1/6: Combining all results")
     df_combined = combine_all(raw_result_df_list)
