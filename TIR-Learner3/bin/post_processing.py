@@ -62,7 +62,7 @@ def check_element_overlap(x1: int, y1: int, x2: int, y2: int) -> bool:
         x1----A----y1
                        x2------B------y2
     """
-    if y1 >= x2 and y1 < y2:
+    if x2 <= y1 < y2:
         return True
     return False
 
@@ -194,7 +194,7 @@ def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
     processors = TIRLearner_instance.processors
     flag_verbose = TIRLearner_instance.flag_verbose
 
-    print('#' * CONSOLE_SPLITER_LEN + " Post Processing " + '#' * CONSOLE_SPLITER_LEN)
+    terminal_print("Post Processing")
 
     print("  Step 1/6: Combining all results")
     df_combined = combine_all(raw_result_df_list)
@@ -214,6 +214,7 @@ def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
     get_final_fasta_file(df_gff3, genome_file, genome_name, processors, flag_verbose,
                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn.fa"))
     del df_gff3
+    gc.collect()
 
     df_combined_groupby_seqid = df_combined.groupby("seqid")
     df_combined_seqid_list = [df_combined_groupby_seqid.get_group(df) for df in df_combined_groupby_seqid.groups]
@@ -238,4 +239,3 @@ def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
     print("  Step 6/6: Generating final fasta file")
     get_final_fasta_file(df_gff3_filtered, genome_file, genome_name, processors, flag_verbose,
                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn_filter.fa"))
-    del df_gff3_filtered

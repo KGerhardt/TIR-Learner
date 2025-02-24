@@ -107,38 +107,39 @@ class TIRLearner:
                  processors: int, para_mode: str,
                  working_dir_path: str, output_dir_path: str, checkpoint_dir_input_path: str,
                  flag_verbose: bool, flag_debug: bool, GRF_path: str, gt_path: str, additional_args: tuple[str]):
-        self.genome_file_path = genome_file_path
-        self.genome_name = genome_name
-        self.species = species
+        self.genome_file_path: str = genome_file_path
+        self.genome_name: str = genome_name
+        self.species: str = species
 
-        self.TIR_length = TIR_length
-        self.processors = processors
-        self.para_mode = para_mode
+        self.TIR_length: int = TIR_length
+        self.processors: int = processors
+        self.para_mode: str = para_mode
 
-        self.working_dir_path = working_dir_path
-        self.output_dir_path = output_dir_path
-        self.checkpoint_dir_input_path = checkpoint_dir_input_path
+        self.working_dir_path: str = working_dir_path
+        self.output_dir_path: str = output_dir_path
+        self.checkpoint_dir_input_path: str = checkpoint_dir_input_path
 
-        self.flag_verbose = flag_verbose
-        self.flag_debug = flag_debug
+        self.flag_verbose: bool = flag_verbose
+        self.flag_debug: bool = flag_debug
 
-        self.GRF_path = GRF_path
-        self.gt_path = gt_path
-        self.additional_args = additional_args
+        self.GRF_path: str = GRF_path
+        self.gt_path: str = gt_path
+        self.additional_args: tuple[str] = additional_args
 
-        self.processed_de_novo_result_file_name = f"{self.genome_name}{FILE_NAME_SPLITER}processed_de_novo_result.fa"
+        self.processed_de_novo_result_file_name: str = (f"{self.genome_name}{FILE_NAME_SPLITER}"
+                                                        f"processed_de_novo_result.fa")
 
         if CHECKPOINT_OFF not in additional_args:
-            self.checkpoint_dir_output_path = os.path.join(
+            self.checkpoint_dir_output_path: str = os.path.join(
                 self.output_dir_path, f"TIR-Learner_v3_checkpoint_{get_timestamp_now_utc_iso8601()}")
             os.makedirs(self.checkpoint_dir_output_path)
 
-        self.genome_file_stat = {"file_size_gib": -0.1, "num": -1,
-                                 "short_seq_num": 0, "short_seq_perc": -0.1,
-                                 "total_len": 0, "avg_len": -1}
-        self.current_progress = [0, 0]
-        self.working_df_dict = {}
-        self.split_fasta_files_path_list = []
+        self.genome_file_stat: dict[str, Union[float, int]] = {"file_size_gib": -0.1, "num": -1,
+                                                               "short_seq_num": 0, "short_seq_perc": -0.1,
+                                                               "total_len": 0, "avg_len": -1}
+        self.current_progress: list[int] = [0, 0]
+        self.working_df_dict: dict[str, Optional[pd.DataFrame]] = {}
+        self.split_fasta_files_path_list: list[str] = []
 
         self.execute()
 
@@ -151,6 +152,7 @@ class TIRLearner:
     def __delitem__(self, key: str) -> int:
         try:
             del self.working_df_dict[key]
+            gc.collect()
             return 0
         except KeyError:
             return -1
@@ -168,7 +170,7 @@ class TIRLearner:
         self.working_df_dict.clear()
 
     def execute(self):
-        temp_dir = self.mount_working_dir()
+        temp_dir: str = self.mount_working_dir()
         self.load_checkpoint_file()
         self.pre_scan_fasta_file()
         # print(os.getcwd())  # TODO ONLY FOR DEBUG REMOVE AFTER FINISHED
@@ -177,10 +179,10 @@ class TIRLearner:
             self.execute_m1()
             self.execute_m2()
             self.execute_m3()
-            raw_result_df_list = [self["m1"], self["m2"], self["m3"]]
+            raw_result_df_list: list[pd.DataFrame] = [self["m1"], self["m2"], self["m3"]]
         else:
             self.execute_m4()
-            raw_result_df_list = [self["m4"]]
+            raw_result_df_list: list[pd.DataFrame] = [self["m4"]]
 
         post_processing.execute(self, raw_result_df_list)
         if CHECKPOINT_OFF not in self.additional_args and not self.flag_debug:
@@ -196,7 +198,7 @@ class TIRLearner:
 
     def pre_scan_fasta_file(self):
         print("Doing pre-scan for genome file...")
-        start_time = time.perf_counter()
+        start_time: float = time.perf_counter()
         self.genome_file_stat["file_size"] = os.path.getsize(self.genome_file_path)
 
         try:
@@ -205,12 +207,12 @@ class TIRLearner:
             raise SystemExit("ERROR: Duplicate sequence name occurs in the genome file. "
                              "Revise the genome file and try again.")
 
-        records = []
+        records: list[SeqRecord] = []
         for record in SeqIO.parse(self.genome_file_path, "fasta"):
             record.seq = record.seq.upper()
-            sequence_str = str(record.seq)
-            seq_len = len(sequence_str)
-            drop_seq_len = self.TIR_length + 500
+            sequence_str: str = str(record.seq)
+            seq_len: int = len(sequence_str)
+            drop_seq_len: int = self.TIR_length + 500
             if seq_len < drop_seq_len:
                 continue
 
@@ -228,13 +230,13 @@ class TIRLearner:
 
             self.genome_file_stat["total_len"] += seq_len
             records.append(record)
-        checked_genome_file = f"{self.genome_name}{FILE_NAME_SPLITER}checked.fa"
+        checked_genome_file: str = f"{self.genome_name}{FILE_NAME_SPLITER}checked.fa"
         SeqIO.write(records, checked_genome_file, "fasta")
         self.genome_file_stat["short_seq_perc"] = (self.genome_file_stat["short_seq_num"] /
                                                    self.genome_file_stat["num"])
         self.genome_file_stat["avg_len"] = self.genome_file_stat["total_len"] // self.genome_file_stat["num"]
 
-        end_time = time.perf_counter()
+        end_time: float = time.perf_counter()
         print(f"Genome file scan finished! Time elapsed: {humanized_time(end_time - start_time)}.")
         print(f"  File name: {os.path.basename(self.genome_file_path)}")
         print(f"  File size: " + humanized_file_size(self.genome_file_stat["file_size"]))
@@ -242,14 +244,14 @@ class TIRLearner:
         print(f"  Number of short sequences: {self.genome_file_stat['short_seq_num']}")
         print(f"  Percentage of short sequences: {self.genome_file_stat['short_seq_perc'] * 100} %")
         print(f"  Average sequence length: {self.genome_file_stat['avg_len'] // 1000} k")
-        self.genome_file_path = os.path.abspath(checked_genome_file)
+        self.genome_file_path: str = os.path.abspath(checked_genome_file)
 
     def mount_working_dir(self):
         if self.working_dir_path is None:
-            temp_dir = tempfile.mkdtemp()
+            temp_dir: Optional[str] = tempfile.mkdtemp()
             self.working_dir_path = temp_dir
         else:
-            temp_dir = None
+            temp_dir: Optional[str] = None
             os.makedirs(self.working_dir_path, exist_ok=True)
         self.working_dir_path = os.path.join(self.working_dir_path, SANDBOX_DIR_NAME)
         os.makedirs(self.working_dir_path, exist_ok=True)
@@ -263,7 +265,8 @@ class TIRLearner:
     #     self.genome_file = genome_file_soft_link
 
     def get_latest_valid_checkpoint_dir(self, search_dir: str) -> str:
-        checkpoint_dirs = sorted([f for f in os.listdir(search_dir) if f.startswith("TIR-Learner_v3_checkpoint_")])
+        checkpoint_dirs: list[str] = sorted([f for f in os.listdir(search_dir) if
+                                             f.startswith("TIR-Learner_v3_checkpoint_")])
         try:
             checkpoint_dirs.remove(os.path.basename(self.checkpoint_dir_output_path))
         except ValueError:
@@ -271,7 +274,7 @@ class TIRLearner:
         if len(checkpoint_dirs) == 0:
             return "not_found"
 
-        latest_checkpoint_dir_path = os.path.join(self.output_dir_path, checkpoint_dirs.pop())
+        latest_checkpoint_dir_path: str = os.path.join(self.output_dir_path, checkpoint_dirs.pop())
         while not os.listdir(latest_checkpoint_dir_path) and len(checkpoint_dirs) != 0:
             os.rmdir(latest_checkpoint_dir_path)
             latest_checkpoint_dir_path = os.path.join(self.output_dir_path, checkpoint_dirs.pop())
@@ -295,18 +298,18 @@ class TIRLearner:
                 self.reset_checkpoint_load_state("Unable to find checkpoint file. ")
                 return
 
-        checkpoint_info_file_path = os.path.join(self.checkpoint_dir_input_path, "info.txt")
+        checkpoint_info_file_path: str = os.path.join(self.checkpoint_dir_input_path, "info.txt")
 
         try:
             with open(checkpoint_info_file_path) as checkpoint_info_file:
                 if os.path.getsize(checkpoint_info_file_path) == 0:
                     raise EOFError(checkpoint_info_file_path)
-                timestamp_iso8601 = checkpoint_info_file.readline().rstrip()
+                timestamp_iso8601: str = checkpoint_info_file.readline().rstrip()
 
-                execution_progress_info = json.loads(checkpoint_info_file.readline().rstrip())
-                species = execution_progress_info[0]
-                module = int(execution_progress_info[1])
-                step = int(execution_progress_info[2])
+                execution_progress_info: list[str] = json.loads(checkpoint_info_file.readline().rstrip())
+                species: str = execution_progress_info[0]
+                module: int = int(execution_progress_info[1])
+                step: int = int(execution_progress_info[2])
 
                 if species != self.species:
                     self.reset_checkpoint_load_state(f"Species \"{species}\" in checkpoint "
@@ -315,22 +318,24 @@ class TIRLearner:
 
                 self.current_progress = [module, step]
 
-                working_df_filename_dict = json.loads(checkpoint_info_file.readline().rstrip())
+                working_df_filename_dict: dict[str, Optional[str]] = json.loads(
+                    checkpoint_info_file.readline().rstrip())
                 for k, v in working_df_filename_dict.items():
                     if v is None:
                         self[k] = None
                         continue
-                    df_file_name = os.path.join(self.checkpoint_dir_input_path, v)
-                    df_dtype_file_name = f"{df_file_name}_dtypes.txt"
+                    df_file_name: str = os.path.join(self.checkpoint_dir_input_path, v)
+                    df_dtype_file_name: str = f"{df_file_name}_dtypes.txt"
                     with open(df_dtype_file_name, 'r') as df_dtype_file:
                         if os.path.getsize(df_dtype_file_name) == 0:
                             raise EOFError(df_dtype_file_name)
-                        df_dtypes_dict = {k: eval(v) for k, v in json.loads(df_dtype_file.readline().rstrip()).items()}
-                    self[k] = pd.read_csv(f"{df_file_name}.csv", sep='\t', header=0, dtype=df_dtypes_dict,
-                                          engine='c', memory_map=True)
+                        df_dtypes_dict: dict[str, str] = {k: eval(v) for k, v in
+                                                          json.loads(df_dtype_file.readline().rstrip()).items()}
+                    self[k] = pd.read_csv(f"{df_file_name}.csv", sep='\t', header=0,
+                                          dtype=df_dtypes_dict, engine='c', memory_map=True)
 
-            processed_de_novo_result_checkpoint_file = os.path.join(self.checkpoint_dir_input_path,
-                                                                    self.processed_de_novo_result_file_name)
+            processed_de_novo_result_checkpoint_file: str = os.path.join(self.checkpoint_dir_input_path,
+                                                                         self.processed_de_novo_result_file_name)
             if os.path.exists(processed_de_novo_result_checkpoint_file):
                 shutil.copy(processed_de_novo_result_checkpoint_file,
                             os.path.join(self.working_dir_path, self.processed_de_novo_result_file_name))
@@ -361,17 +366,17 @@ class TIRLearner:
         if CHECKPOINT_OFF in self.additional_args:
             return
 
-        module = self.current_progress[0]
-        step = self.current_progress[1]
+        module: int = self.current_progress[0]
+        step: int = self.current_progress[1]
         # checkpoint_file_name = f"module_{module}_step_{step}_{timestamp_now_iso8601}.csv"
-        working_df_filename_dict = {k: f"{k}_module_{module}_step_{step}_{get_timestamp_now_utc_iso8601()}"
-                                    for k in self.keys()}
+        working_df_filename_dict: dict[str, Optional[str]] = {
+            k: f"{k}_module_{module}_step_{step}_{get_timestamp_now_utc_iso8601()}" for k in self.keys()}
 
         for k, v in self.items():
             if v is None:
                 working_df_filename_dict[k] = None
                 continue
-            df_file_name = os.path.join(self.checkpoint_dir_output_path, working_df_filename_dict[k])
+            df_file_name: str = os.path.join(self.checkpoint_dir_output_path, working_df_filename_dict[k])
             v.to_csv(f"{df_file_name}.csv", index=False, header=True, sep='\t')
             with open(f"{df_file_name}_dtypes.txt", 'w') as f:
                 try:
@@ -387,10 +392,10 @@ class TIRLearner:
             f.write('\n')
 
         if not self.flag_debug:
-            remove_file_set = (set(os.listdir(self.checkpoint_dir_output_path)) -
-                               set(map("{}.csv".format, working_df_filename_dict.values())) -
-                               set(map("{}_dtypes.txt".format, working_df_filename_dict.values())) -
-                               {"info.txt", self.processed_de_novo_result_file_name})
+            remove_file_set: set = (set(os.listdir(self.checkpoint_dir_output_path)) -
+                                    set(map("{}.csv".format, working_df_filename_dict.values())) -
+                                    set(map("{}_dtypes.txt".format, working_df_filename_dict.values())) -
+                                    {"info.txt", self.processed_de_novo_result_file_name})
             for f in remove_file_set:
                 subprocess.Popen(["unlink", os.path.join(self.checkpoint_dir_output_path, f)],
                                  stderr=subprocess.DEVNULL)
@@ -402,10 +407,10 @@ class TIRLearner:
         shutil.copy(self.processed_de_novo_result_file_name,
                     os.path.join(self.checkpoint_dir_output_path, self.processed_de_novo_result_file_name))
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'r') as f:
-            lines = f.readlines()
+            lines: list[str] = f.readlines()
 
-        module = self.current_progress[0]
-        step = self.current_progress[1]
+        module: int = self.current_progress[0]
+        step: int = self.current_progress[1]
         lines[1] = json.dumps((self.species, module, step)) + '\n'
 
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'w') as f:
@@ -413,32 +418,34 @@ class TIRLearner:
 
     def progress_check(self, progress_or_module: Union[list[int], int], step: Optional[int] = None) -> bool:
         if type(progress_or_module) is list:
-            executing_module = progress_or_module[0]
-            executing_step = progress_or_module[1]
+            executing_module: int = progress_or_module[0]
+            executing_step: int = progress_or_module[1]
         else:
-            executing_module = progress_or_module
-            executing_step = step
+            executing_module: int = progress_or_module
+            executing_step: int = step
 
         return (self.checkpoint_dir_input_path is None or
                 self.current_progress[0] < executing_module or
                 (self.current_progress[0] == executing_module and self.current_progress[1] < executing_step))
 
     def show_current_memory_usage(self):
-        process_memory_usage = get_process_memory_usage_in_byte(detail=False)
-        print('-' * CONSOLE_SPLITER_LEN)
+        process_memory_usage: Optional[dict[str, Union[dict[str, int], int]]] = get_process_memory_usage_in_byte(
+            detail=False)
+        if process_memory_usage is None:
+            return
+        terminal_print(spliter='-')
         print("Current Memory Usage:")
         print(f"RSS: {humanized_file_size(process_memory_usage['rss'])}, "
               f"VMS: {humanized_file_size(process_memory_usage['vms'])}")
         print(f"DataFrame: {humanized_file_size(get_df_total_memory_usage_in_byte(self.working_df_dict))}")
-        print('-' * CONSOLE_SPLITER_LEN)
+        terminal_print(spliter='-')
 
     def execute_m1(self):
-        print('#' * CONSOLE_SPLITER_LEN + " Module 1 Begin " + '#' * CONSOLE_SPLITER_LEN)
-
-        module = "Module1"
+        terminal_print("Module 1 Begin")
+        module: str = "Module1"
 
         # Module 1, Step 1: Blast reference library in genome file
-        current_progress = [1, 1]
+        current_progress: list[int] = [1, 1]
         if self.progress_check(current_progress):
             blast_reference.blast_genome_file(self)
             self.current_progress = current_progress
@@ -484,15 +491,14 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        print('#' * CONSOLE_SPLITER_LEN + " Module 1 Finished " + '#' * CONSOLE_SPLITER_LEN)
+        terminal_print("Module 1 Finished")
 
     def execute_m2(self):
-        print('#' * CONSOLE_SPLITER_LEN + " Module 2 Begin " + '#' * CONSOLE_SPLITER_LEN)
-
-        module = "Module2"
+        terminal_print("Module 2 Begin")
+        module: str = "Module2"
 
         # Module 2, Step 1: Run TIRvish to find inverted repeats
-        current_progress = [2, 1]
+        current_progress: list[int] = [2, 1]
         if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 2, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)
@@ -591,15 +597,14 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        print('#' * CONSOLE_SPLITER_LEN + " Module 2 Finished " + '#' * CONSOLE_SPLITER_LEN)
+        terminal_print("Module 2 Finished")
 
     def execute_m3(self):
-        print('#' * CONSOLE_SPLITER_LEN + " Module 3 Begin " + '#' * CONSOLE_SPLITER_LEN)
-
-        module = "Module3"
+        terminal_print("Module 3 Begin")
+        module: str = "Module3"
 
         # Module 3, Step 1: Prepare data
-        current_progress = [3, 1]
+        current_progress: list[int] = [3, 1]
         if self.progress_check(current_progress):
             print("Module 3, Step 1: Prepare data")
             self["base"] = prepare_data.execute(self, self["m2_homo"])
@@ -650,15 +655,14 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        print('#' * CONSOLE_SPLITER_LEN + " Module 3 Finished " + '#' * CONSOLE_SPLITER_LEN)
+        terminal_print("Module 3 Finished")
 
     def execute_m4(self):
-        print('#' * CONSOLE_SPLITER_LEN + " Module 4 Begin " + '#' * CONSOLE_SPLITER_LEN)
-
-        module = "Module4"
+        terminal_print("Module 4 Begin")
+        module: str = "Module4"
 
         # Module 4, Step 1: Run TIRvish to find inverted repeats
-        current_progress = [4, 1]
+        current_progress: list[int] = [4, 1]
         if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 4, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)
@@ -757,4 +761,4 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        print('#' * CONSOLE_SPLITER_LEN + " Module 4 Finished " + '#' * CONSOLE_SPLITER_LEN)
+        terminal_print("Module 4 Finished")

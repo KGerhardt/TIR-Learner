@@ -2,13 +2,12 @@ import os
 import warnings
 
 os.environ["KERAS_BACKEND"] = "torch"  # use pytorch as keras backend
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = '3'  # mute all tensorflow info, warnings, and error msgs. #shujun
 os.environ["KMP_WARNINGS"] = '0'  # mute all OpenMP warnings. #shujun
-# warnings.filterwarnings("ignore", category=FutureWarning)  # mute tensorflow warnings and pyarrow warning
 warnings.filterwarnings("ignore", category=UserWarning)  # mute keras warning
 
 # Use if True to suppress the PEP8: E402 warning
 if True:  # noqa: E402
+    import gc
     import datetime
     import json
     import math
@@ -29,15 +28,11 @@ if True:  # noqa: E402
     from Bio.Seq import Seq
     from Bio.SeqRecord import SeqRecord
 
-    from sklearn.preprocessing import LabelEncoder
     # Attention: sklearn does not automatically import its subpackages
-    # import tensorflow as tf
+    from sklearn.preprocessing import LabelEncoder
+
     import torch
     import keras
-    # from tensorflow.python.framework.errors_impl import InternalError
-    # from keras.utils import to_categorical
-    # from keras.models import load_model
-
 
 # Acceptable additional args
 CHECKPOINT_OFF = "CHECKPOINT_OFF"
@@ -46,7 +41,7 @@ SKIP_TIRVISH = "SKIP_TIRVISH"
 SKIP_GRF = "SKIP_GRF"
 
 FILE_NAME_SPLITER = "-+-"
-CONSOLE_SPLITER_LEN = 32
+TERMINAL_SPLITER = '#'
 
 TIR_SUPERFAMILIES = ("DTA", "DTC", "DTH", "DTM", "DTT")
 
@@ -77,11 +72,18 @@ SHORT_SEQ_LEN = 2000
 # MIX_SPLIT_PERCENT_THRESHOLD = 0.05
 # MIX_SHORT_SEQ_PROCESS_NUM = 2
 
+DEFAULT_TERMINAL_WIDTH = 120
+try:
+    TERMINAL_WIDTH = os.get_terminal_size().columns
+    if TERMINAL_WIDTH > DEFAULT_TERMINAL_WIDTH:
+        TERMINAL_WIDTH = DEFAULT_TERMINAL_WIDTH
+except OSError:
+    TERMINAL_WIDTH = DEFAULT_TERMINAL_WIDTH
 
-def process_additional_args(additional_args: list[str]) -> tuple[str]:
-    if additional_args == [""]:
-        return tuple()
-    processed_additional_args = tuple(map(str.upper, additional_args))
-    if (SKIP_TIRVISH in processed_additional_args) and (SKIP_GRF in processed_additional_args):
-        raise SystemExit("ERROR: \"skip_tirvish\" and \"skip_grf\" cannot be specified at the same time!")
-    return processed_additional_args
+
+def terminal_print(string: str = "", spliter: str = TERMINAL_SPLITER, **kwargs):
+    if string != "":
+        num_spliter = (TERMINAL_WIDTH - (2 + len(string)) - 1) // 2
+        print(f"{spliter * num_spliter} {string} {spliter * num_spliter}", **kwargs)
+    else:
+        print(spliter * (TERMINAL_WIDTH - 1), **kwargs)

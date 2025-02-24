@@ -13,11 +13,21 @@ if True:  # noqa: E402
     import shutil
 
     from bin.main import TIRLearner
-    from bin.const import DEFAULT_ALLOCATED_PROCESSORS, process_additional_args
+    from bin.const import DEFAULT_ALLOCATED_PROCESSORS, SKIP_TIRVISH, SKIP_GRF
 
 VERSION = "v3.0.6"
 INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
         "released under GPLv3")
+
+
+def process_additional_args(additional_args: list[str]) -> tuple[str]:
+    if additional_args == [""]:
+        return tuple()
+    processed_additional_args = tuple(map(str.upper, additional_args))
+    if (SKIP_TIRVISH in processed_additional_args) and (SKIP_GRF in processed_additional_args):
+        raise SystemExit("ERROR: \"skip_tirvish\" and \"skip_grf\" cannot be specified at the same time!")
+    return processed_additional_args
+
 
 def main() -> TIRLearner:
 
