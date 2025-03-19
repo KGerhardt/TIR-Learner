@@ -4,7 +4,7 @@ from get_fasta_sequence import get_fasta_pieces_SeqIO
 from process_de_novo_result import TA_repeats_check
 
 
-def combine_all(df_list: list[pd.DataFrame]) -> Optional[pd.DataFrame]:
+def combine_all(df_list: List[pd.DataFrame]) -> Optional[pd.DataFrame]:
     if len(df_list) > 1:
         try:
             df = pd.concat(df_list, ignore_index=True)
@@ -42,6 +42,7 @@ def format_df_in_gff3_format(df_in: pd.DataFrame, flag_verbose: bool) -> pd.Data
 
 # =============================== Remove the Shorter One Among Two Overlapped Sequences ================================
 
+# noinspection PyUnusedLocal
 def check_element_overlap(x1: int, y1: int, x2: int, y2: int) -> bool:
     """Checking sequences overlap only among element part of sequences
 
@@ -66,7 +67,7 @@ def check_element_overlap(x1: int, y1: int, x2: int, y2: int) -> bool:
         return True
     return False
 
-
+# noinspection PyUnusedLocal
 def check_element_TIR_overlap(x1: int, y1: int, x2: int, y2: int, m1: int, n1: int, m2: int, n2: int) -> bool:
     """Checking sequences overlap among element part and TIR part of sequences
 
@@ -187,7 +188,7 @@ def get_final_fasta_file(df_in: pd.DataFrame, genome_file: str, genome_name: str
     df.to_csv(file_path, index=False, header=False, sep="\n")
 
 
-def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
+def execute(TIRLearner_instance, raw_result_df_list: List[pd.DataFrame]):
     genome_file = TIRLearner_instance.genome_file_path
     genome_name = TIRLearner_instance.genome_name
     output_dir = TIRLearner_instance.output_dir_path
@@ -199,7 +200,7 @@ def execute(TIRLearner_instance, raw_result_df_list: list[pd.DataFrame]):
     print("  Step 1/6: Combining all results")
     df_combined = combine_all(raw_result_df_list)
     if df_combined is None or df_combined.shape[0] == 0:
-        print("WARN: No TIR found. Post-processing will be terminated and no result will be produced.")
+        print("[WARN] No TIR found. Post-processing will be terminated and no result will be produced.")
         return
 
     result_output_dir_path = os.path.join(output_dir, "TIR-Learner-Result")

@@ -21,7 +21,7 @@ def GRF_mp(genome_file_path: str, genome_name: str, TIR_length: int, processors:
     os.chdir("../")
 
 
-def processors_allocation(processors: int) -> tuple[int, int, int]:
+def processors_allocation(processors: int) -> Tuple[int, int, int]:
     if processors <= 16:
         num_process = int(math.sqrt(processors))
     else:
@@ -41,7 +41,7 @@ def run_GRF_native(genome_file: str, genome_name: str, TIR_length: int,
 
 
 def run_GRF_py_para(genome_file: str, genome_name: str, TIR_length: int,
-                    processors: int, flag_debug: bool, GRF_path: str, fasta_files_path_list: list[str]) -> pd.DataFrame:
+                    processors: int, flag_debug: bool, GRF_path: str, fasta_files_path_list: List[str]) -> pd.DataFrame:
     os.makedirs(f"{SPLIT_FASTA_TAG}_mp", exist_ok=True)
     os.chdir(f"./{SPLIT_FASTA_TAG}_mp")
 
@@ -92,7 +92,7 @@ def get_single_GRF_result_df_para(file_path: str, flag_debug: bool,
     return df
 
 
-def get_GRF_result_df_para(fasta_files_path_list: list[str], genome_name: str, processors: int, flag_debug: bool,
+def get_GRF_result_df_para(fasta_files_path_list: List[str], genome_name: str, processors: int, flag_debug: bool,
                            split_seq_len: int, overlap_seq_len: int) -> Optional[pd.DataFrame]:
     GRF_result_dir_name = f"{genome_name}_GRFmite"
     GRF_result_dir_list = [os.path.join(os.path.dirname(file), GRF_result_dir_name) for file in
@@ -108,7 +108,7 @@ def get_GRF_result_df_para(fasta_files_path_list: list[str], genome_name: str, p
     return pd.concat(df_list).drop_duplicates(ignore_index=True).sort_values("id", ignore_index=True)
 
 
-# def get_GRF_result_df_para(fasta_files_path_list: list[str], genome_name: str,
+# def get_GRF_result_df_para(fasta_files_path_list: List[str], genome_name: str,
 #                            flag_debug: bool, split_seq_len: int, overlap_seq_len: int) -> Optional[pd.DataFrame]:
 #     GRF_result_dir_name = f"{genome_name}_GRFmite"
 #     GRF_result_dir_list = [os.path.join(os.path.dirname(file), GRF_result_dir_name) for file in

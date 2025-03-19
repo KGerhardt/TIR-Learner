@@ -127,7 +127,7 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df = TA_repeats_check(df, "TIR1")
     df = TA_repeats_check(df, "TIR2")
 
-    print("  Step 5/5: Checking N existance on TIR")
+    print("  Step 5/5: Checking N existence on TIR")
     df["check_N_TIR1_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
         lambda x: np.nan if check_N(x["TIR1"]) else False, axis=1)
     df = df.dropna(ignore_index=True).copy()
@@ -148,7 +148,7 @@ def combine_de_novo_result(TIRLearner_instance):
         df = None
 
     if df is None or df.shape[0] == 0:
-        raise SystemExit("ERROR: No TIR was found by TIRvish and GRF in the de novo process. "
+        raise SystemExit("[ERROR] No TIR was found by TIRvish and GRF in the de novo process. "
                          "Check your input file as well as arguments.")
 
     df.to_csv(TIRLearner_instance.processed_de_novo_result_file_name, sep='\n', header=False, index=False)

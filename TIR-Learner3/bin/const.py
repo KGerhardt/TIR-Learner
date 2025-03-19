@@ -5,34 +5,32 @@ os.environ["KERAS_BACKEND"] = "torch"  # use pytorch as keras backend
 os.environ["KMP_WARNINGS"] = '0'  # mute all OpenMP warnings. #shujun
 warnings.filterwarnings("ignore", category=UserWarning)  # mute keras warning
 
-# Use if True to suppress the PEP8: E402 warning
-if True:  # noqa: E402
-    import gc
-    import datetime
-    import json
-    import math
-    import multiprocessing as mp
-    import psutil
-    import regex as re
-    import shutil
-    import subprocess
-    import tempfile
-    import time
-    from typing import Union, Optional
+import gc
+import datetime
+import json
+import math
+import multiprocessing as mp
+import psutil
+import regex as re
+import shutil
+import subprocess
+import tempfile
+import time
+from typing import List, Dict, Tuple, Union, Optional
 
-    import numpy as np
-    import pandas as pd
-    import swifter
+import numpy as np
+import pandas as pd
+import swifter
 
-    from Bio import SeqIO
-    from Bio.Seq import Seq
-    from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-    # Attention: sklearn does not automatically import its subpackages
-    from sklearn.preprocessing import LabelEncoder
+# Attention: sklearn does not automatically import its subpackages
+from sklearn.preprocessing import LabelEncoder
 
-    import torch
-    import keras
+import torch
+import keras
 
 # Acceptable additional args
 CHECKPOINT_OFF = "CHECKPOINT_OFF"

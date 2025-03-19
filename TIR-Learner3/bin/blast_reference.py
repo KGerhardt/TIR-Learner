@@ -7,7 +7,7 @@ def blast_ref_lib_in_genome_file(genome_db: str, genome_name: str,
     # out = genome_name + FILE_NAME_SPLITER + "blast" + FILE_NAME_SPLITER + ref_lib
     blast = (f"blastn -max_hsps 5 -perc_identity 80 -qcov_hsp_perc 100 -query \"{ref_lib_file_path}\" "
              f"-db \"{genome_db}\" -num_threads {processors} -outfmt '6 qacc sacc length pident gaps mismatch "
-             f"qstart qend sstart send evalue qcovhsp' -out \"{out}\" 2>/dev/null")
+             f"qstart qend sstart send evalue qcovhsp' -out \"{out}\" 2> /dev/null")
     # Find where is the RefLib in the genome database
     subprocess.Popen(blast, shell=True).wait()
 
@@ -17,7 +17,7 @@ def blast_de_novo_result_in_ref_lib(file_name: str, ref_lib: str, ref_lib_file_p
     # out = file_name + FILE_NAME_SPLITER + "blast" + FILE_NAME_SPLITER + ref_lib
     blast = (f"blastn -max_hsps 5 -perc_identity 80 -qcov_hsp_perc 80 -query \"{file_name}\" "
              f"-subject \"{ref_lib_file_path}\" -num_threads {processors} -outfmt '6 qseqid sseqid length pident "
-             f"gaps mismatch qstart qend sstart send evalue qcovhsp' -out \"{out}\" 2>/dev/null")
+             f"gaps mismatch qstart qend sstart send evalue qcovhsp' -out \"{out}\" 2> /dev/null")
     # Find whether there is any predicted TIR (GRFmite and TIRvish) inside the refLib
     subprocess.Popen(blast, shell=True).wait()
 
@@ -32,7 +32,7 @@ def blast_genome_file(TIRLearner_instance):
     print("Module 1, Step 1: Blast reference library in genome file")
     genome_db = TIRLearner_instance.genome_file_path + FILE_NAME_SPLITER + "db"
     mkDB = (f"makeblastdb -in {TIRLearner_instance.genome_file_path} -out {genome_db} "
-            f"-parse_seqids -dbtype nucl 2>/dev/null")
+            f"-parse_seqids -dbtype nucl 2> /dev/null")
     subprocess.Popen(mkDB, shell=True).wait()
 
     mp_args_list = [(genome_db, TIRLearner_instance.genome_name,

@@ -11,6 +11,7 @@ sys.path.insert(0, f"{os.path.dirname(__file__)}/bin")
 if True:  # noqa: E402
     import argparse
     import shutil
+    from typing import List, Tuple, Optional
 
     from bin.main import TIRLearner
     from bin.const import DEFAULT_ALLOCATED_PROCESSORS, SKIP_TIRVISH, SKIP_GRF
@@ -20,41 +21,47 @@ INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
         "released under GPLv3")
 
 
-def process_additional_args(additional_args: list[str]) -> tuple[str]:
-    if additional_args == [""]:
+def process_additional_args(additional_args: Optional[List[str]]) -> Tuple[str, ...]:
+    if not additional_args:
         return tuple()
-    processed_additional_args = tuple(map(str.upper, additional_args))
+    # processed_additional_args = tuple(map(str.upper, additional_args))
+    processed_additional_args = tuple(map(lambda x: str(x.upper()), additional_args))
     if (SKIP_TIRVISH in processed_additional_args) and (SKIP_GRF in processed_additional_args):
-        raise SystemExit("ERROR: \"skip_tirvish\" and \"skip_grf\" cannot be specified at the same time!")
+        raise SystemExit("[ERROR] \"skip_tirvish\" and \"skip_grf\" cannot be specified at the same time!")
     return processed_additional_args
 
 
-def main() -> TIRLearner:
-
-    # ================================================ argument parsing ================================================
-    parser = argparse.ArgumentParser(prog="TIR-Learner")
+def main():
+    """Main function to handle command line arguments and execute the program."""
+    parser = argparse.ArgumentParser(prog="TIR-Learner",
+                                     description="TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat "
+                                                 "(TIR) transposable elements annotation in eukaryotic genomes")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}\n{INFO}")
-    parser.add_argument("-f", "--genome_file", help="Genome file in fasta format", required=True)
-    parser.add_argument("-n", "--genome_name", help="Genome name (Optional)", default="TIR-Learner")
+
+    parser.add_argument("-f", "--genome_file", help="Genome file in fasta format",
+                        type=str, required=True)
+    parser.add_argument("-n", "--genome_name", help="Genome name (Optional)",
+                        type=str, default="TIR-Learner")
     parser.add_argument("-s", "--species", help="One of the following: \"maize\", \"rice\" or \"others\"",
-                        required=True)
+                        type=str, required=True)
     parser.add_argument("-l", "--length", help="Max length of TIR (Optional)", type=int, default=5000)
-    parser.add_argument("-p", "-t", "--processor", help="Number of processors allowed (Optional)",
-                        type=int, default=DEFAULT_ALLOCATED_PROCESSORS)
+    parser.add_argument("-p", "--processors", "-t", "--cpu",
+                        help="Number of processors allowed (Optional)", type=int, default=DEFAULT_ALLOCATED_PROCESSORS)
     # -t means --thread, however multithreading is abandoned, so it's only for downward compatibility
     # TODO add py and gnup two parallel execution mode, also add more detailed help info
     parser.add_argument("-m", "--mode", help=("Parallel execution mode, one of the following: \"py\" "
-                                              "and \"gnup\" (Optional)"), default="py")
+                                              "and \"gnup\" (Optional)"), type=str, default="py")
     parser.add_argument("-w", "--working_dir", help="The path to the working directory (Optional). "
                                                     "An isolated sandbox directory for storing all the temporary files "
                                                     "will be created in the working directory. This sandbox directory "
                                                     "will only persist during the program execution. DO NOT TOUCH "
-                                                    "THE SANDBOX DIRECTORY IF IT IS NOT FOR DEBUGGING!", default=None)
-    parser.add_argument("-o", "--output_dir", help="Output directory (Optional)", default=None)
+                                                    "THE SANDBOX DIRECTORY IF IT IS NOT FOR DEBUGGING!",
+                        type=str, default=None)
+    parser.add_argument("-o", "--output_dir", help="Output directory (Optional)", type=str, default=None)
     parser.add_argument("-c", "--checkpoint_dir", help="The path to the checkpoint directory (Optional). "
                                                        "If not specified, the program will automatically search for it "
                                                        "in the genome file directory and the output directory.",
-                        nargs='?', const="auto", default=None)
+                        type=str, nargs='?', const="auto", default=None)
     parser.add_argument("--verbose", help="Verbose mode (Optional). "
                                           "Will show interactive progress bar and more execution details.",
                         action="store_true")
@@ -63,12 +70,12 @@ def main() -> TIRLearner:
                                               "the temporary files in the working directory will also be kept.",
                         action="store_true")
     parser.add_argument("--grf_path", help="Path to GRF program (Optional)",
-                        default=os.path.dirname(shutil.which("grf-main")))
+                        type=str, default=os.path.dirname(shutil.which("grf-main")))
     parser.add_argument("--gt_path", help="Path to genometools program (Optional)",
-                        default=os.path.dirname(shutil.which("gt")))
+                        type=str, default=os.path.dirname(shutil.which("gt")))
     parser.add_argument("-a", "--additional_args", help="Additional arguments (Optional). "
                                                         "See documentation for more details.",
-                        action="append", default=[])
+                        type=str, nargs="+")
     # see prog_const for what additional args are acceptable
 
     parsed_args = parser.parse_args()
@@ -78,12 +85,12 @@ def main() -> TIRLearner:
     species = parsed_args.species
 
     TIR_length = parsed_args.length
-    processors = parsed_args.processor
-    GRF_mode = parsed_args.mode
+    processors = parsed_args.processors
+    para_mode = parsed_args.mode
 
     working_dir = parsed_args.working_dir
     output_dir = parsed_args.output_dir
-    if output_dir is None:
+    if not output_dir:
         output_dir = os.path.dirname(genome_file)
     checkpoint_input = parsed_args.checkpoint_dir
 
@@ -93,8 +100,8 @@ def main() -> TIRLearner:
     GRF_path = parsed_args.grf_path.replace('"', "")
     gt_path = parsed_args.gt_path.replace('"', "")
     additional_args = process_additional_args(parsed_args.additional_args)
-    if len(additional_args) != 0:
-        print(f"INFO: Additional args: {additional_args} captured.")
+    if additional_args:
+        print(f"[INFO] Additional args: {additional_args} captured.")
 
     # Transforming the possible relative path into absolute path
     genome_file = os.path.abspath(genome_file)
@@ -102,13 +109,26 @@ def main() -> TIRLearner:
     GRF_path = os.path.abspath(GRF_path)
     gt_path = os.path.abspath(gt_path)
 
-    if checkpoint_input is not None and checkpoint_input != "auto":
+    if checkpoint_input and checkpoint_input != "auto":
         checkpoint_input = os.path.abspath(checkpoint_input)
-    # ==================================================================================================================
 
-    return TIRLearner(genome_file, genome_name, species, TIR_length,
-                      processors, GRF_mode, working_dir, output_dir, checkpoint_input,
-                      flag_verbose, flag_debug, GRF_path, gt_path, additional_args)
+    TIRLearner_instance = TIRLearner(
+        genome_file_path=genome_file,
+        genome_name=genome_name,
+        species=species,
+        TIR_length=TIR_length,
+        processors=processors,
+        para_mode=para_mode,
+        working_dir_path=working_dir,
+        output_dir_path=output_dir,
+        checkpoint_dir_input_path=checkpoint_input,
+        flag_verbose=flag_verbose,
+        flag_debug=flag_debug,
+        GRF_path=GRF_path,
+        gt_path=gt_path,
+        additional_args=additional_args
+    )
+    TIRLearner_instance.execute()
 
 if __name__ == "__main__":
-    TIRLearner_instance = main()
+    main()

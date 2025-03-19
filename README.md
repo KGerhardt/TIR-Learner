@@ -222,8 +222,8 @@ TIR-Learner -f ./test/genome.fa -s others -p 2 -l 5000 -c ./ -w ./test/ -d --ver
 <!-- ![TIR-Learner Workflow](./docs/TIR-Learner3_workflow.drawio.png) -->
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/TIR-Learner3_workflow_for light mode.drawio.png">
-  <img alt="TIR-Learner v3 Workflow" src="./docs/TIR-Learner3_workflow_for dark mode.drawio.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/TIR-Learner3_workflow_light_mode.drawio.png">
+  <img alt="TIR-Learner v3 Workflow" src="docs/TIR-Learner3_workflow_dark_mode.drawio.png">
 </picture>
 
 TIR-Learner v3 consists of two main processing paths:

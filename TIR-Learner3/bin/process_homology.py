@@ -43,17 +43,17 @@ def process_homology_eighty_similarity(file_name: str, species: str, TIR_type: s
     return df
 
 
-def process_result(df_list: list[pd.DataFrame], species: str) -> pd.DataFrame:
+def process_result(df_list: List[pd.DataFrame], species: str) -> pd.DataFrame:
     try:
         df = pd.concat(df_list, ignore_index=True).iloc[:, [0, 1, 2, 9, 10]].copy()
     except ValueError:
         # print(f"""
-        # ERROR: No sequence is found similar to the TIR database of {species}!
+        # [ERROR] No sequence is found similar to the TIR database of {species}!
         # You may have specified the wrong species. Please double-check or set species=others and rerun TIR-Learner.
         # """)
         # sys.exit(-1)
         raise SystemExit(f"""
-        ERROR: No sequence is found similar to the TIR database of {species}!
+        [ERROR] No sequence is found similar to the TIR database of {species}!
         You may have specified the wrong species. Please double-check or set species=others and rerun TIR-Learner. 
         """)
     df = df.set_axis(["TIR_type", "id", "seqid", "sstart", "send"], axis=1)

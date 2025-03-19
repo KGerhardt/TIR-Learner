@@ -3,7 +3,7 @@ from const import *
 from get_fasta_sequence import get_fasta_pieces_SeqIO
 
 
-def split_sequence_evenly(seq_record: SeqRecord, split_seq_len: int, overlap_seq_len: int) -> list[SeqRecord]:
+def split_sequence_evenly(seq_record: SeqRecord, split_seq_len: int, overlap_seq_len: int) -> List[SeqRecord]:
     """
     Evenly splits a sequence into several segmented sequences, each segment has a maximum length of
     the length threshold split_seq_len.
@@ -70,7 +70,7 @@ def save_fasta_file(seq_record: SeqRecord) -> str:
     return fasta_file_path
 
 
-def process_fasta(genome_file: str, split_seq_len: int, overlap_seq_len: int) -> list[str]:
+def process_fasta(genome_file: str, split_seq_len: int, overlap_seq_len: int) -> List[str]:
     """
     Write each sequence in the FASTA file into separate FASTA files and further split the sequence into segments if
     when needed based on a length threshold split_seq_len.
@@ -188,7 +188,7 @@ def run_TIRvish_native(genome_file: str, genome_name: str, TIR_length: int,
 
 def run_TIRvish_py_para(genome_file: str, genome_name: str, TIR_length: int,
                         processors: int, flag_debug: bool, gt_path: str,
-                        fasta_files_path_list: list[str]) -> pd.DataFrame:
+                        fasta_files_path_list: List[str]) -> pd.DataFrame:
     os.makedirs(f"{SPLIT_FASTA_TAG}_mp", exist_ok=True)
     os.chdir(f"./{SPLIT_FASTA_TAG}_mp")
 

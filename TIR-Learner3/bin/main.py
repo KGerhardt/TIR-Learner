@@ -99,14 +99,14 @@ def get_df_total_memory_usage_in_byte(obj: Optional[Union[dict[str, pd.DataFrame
             total_size += get_df_total_memory_usage_in_byte(v)
         return total_size
     else:
-        raise ValueError(f"ERROR: Not supported type \"{type(obj)}\"")
+        raise ValueError(f"[ERROR] Not supported type \"{type(obj)}\"")
 
 
 class TIRLearner:
     def __init__(self, genome_file_path: str, genome_name: str, species: str, TIR_length: int,
                  processors: int, para_mode: str,
                  working_dir_path: str, output_dir_path: str, checkpoint_dir_input_path: str,
-                 flag_verbose: bool, flag_debug: bool, GRF_path: str, gt_path: str, additional_args: tuple[str]):
+                 flag_verbose: bool, flag_debug: bool, GRF_path: str, gt_path: str, additional_args: Tuple[str, ...]):
         self.genome_file_path: str = genome_file_path
         self.genome_name: str = genome_name
         self.species: str = species
@@ -124,7 +124,7 @@ class TIRLearner:
 
         self.GRF_path: str = GRF_path
         self.gt_path: str = gt_path
-        self.additional_args: tuple[str] = additional_args
+        self.additional_args: Tuple[str, ...] = additional_args
 
         self.processed_de_novo_result_file_name: str = (f"{self.genome_name}{FILE_NAME_SPLITER}"
                                                         f"processed_de_novo_result.fa")
@@ -134,14 +134,12 @@ class TIRLearner:
                 self.output_dir_path, f"TIR-Learner_v3_checkpoint_{get_timestamp_now_utc_iso8601()}")
             os.makedirs(self.checkpoint_dir_output_path)
 
-        self.genome_file_stat: dict[str, Union[float, int]] = {"file_size_gib": -0.1, "num": -1,
+        self.genome_file_stat: Dict[str, Union[float, int]] = {"file_size_gib": -0.1, "num": -1,
                                                                "short_seq_num": 0, "short_seq_perc": -0.1,
                                                                "total_len": 0, "avg_len": -1}
-        self.current_progress: list[int] = [0, 0]
-        self.working_df_dict: dict[str, Optional[pd.DataFrame]] = {}
-        self.split_fasta_files_path_list: list[str] = []
-
-        self.execute()
+        self.current_progress: List[int] = [0, 0]
+        self.working_df_dict: Dict[str, Optional[pd.DataFrame]] = {}
+        self.split_fasta_files_path_list: List[str] = []
 
     def __getitem__(self, key: str) -> Optional[pd.DataFrame]:
         return self.working_df_dict[key]
@@ -173,16 +171,19 @@ class TIRLearner:
         temp_dir: str = self.mount_working_dir()
         self.load_checkpoint_file()
         self.pre_scan_fasta_file()
-        # print(os.getcwd())  # TODO ONLY FOR DEBUG REMOVE AFTER FINISHED
+
+        # TODO save scanned fasta file in checkpoint
+        # TODO revise execute() to put load_checkpoint_file() and pre_scan_fasta_file() in init
+        # TODO add cleanup() method to handle the error during init
 
         if self.species in REFLIB_AVAILABLE_SPECIES:
             self.execute_m1()
             self.execute_m2()
             self.execute_m3()
-            raw_result_df_list: list[pd.DataFrame] = [self["m1"], self["m2"], self["m3"]]
+            raw_result_df_list: List[pd.DataFrame] = [self["m1"], self["m2"], self["m3"]]
         else:
             self.execute_m4()
-            raw_result_df_list: list[pd.DataFrame] = [self["m4"]]
+            raw_result_df_list: List[pd.DataFrame] = [self["m4"]]
 
         post_processing.execute(self, raw_result_df_list)
         if CHECKPOINT_OFF not in self.additional_args and not self.flag_debug:
@@ -204,10 +205,10 @@ class TIRLearner:
         try:
             self.genome_file_stat["num"] = len(list(SeqIO.index(self.genome_file_path, "fasta")))
         except Exception:
-            raise SystemExit("ERROR: Duplicate sequence name occurs in the genome file. "
+            raise SystemExit("[ERROR] Duplicate sequence name occurs in the genome file. "
                              "Revise the genome file and try again.")
 
-        records: list[SeqRecord] = []
+        records: List[SeqRecord] = []
         for record in SeqIO.parse(self.genome_file_path, "fasta"):
             record.seq = record.seq.upper()
             sequence_str: str = str(record.seq)
@@ -217,11 +218,11 @@ class TIRLearner:
                 continue
 
             if set(sequence_str) > {'A', 'C', 'G', 'T', 'N'}:
-                print(f"WARN: Unknown character exist in sequence {record.id} will be replaced by \'N\'.")
+                print(f"[WARN] Unknown character exist in sequence {record.id} will be replaced by \'N\'.")
                 record.seq = Seq(re.sub("[^ACGTN]", "N", sequence_str))
 
             if FILE_NAME_SPLITER in record.id:
-                print((f"WARN: Sequence name \"{record.id}\" has reserved string \"{FILE_NAME_SPLITER}\", "
+                print((f"[WARN] Sequence name \"{record.id}\" has reserved string \"{FILE_NAME_SPLITER}\", "
                        "which makes it incompatible with TIR-Learner and will be replaced with \'_\'."))
                 record.id = record.id.replace(FILE_NAME_SPLITER, "_")
 
@@ -265,7 +266,7 @@ class TIRLearner:
     #     self.genome_file = genome_file_soft_link
 
     def get_latest_valid_checkpoint_dir(self, search_dir: str) -> str:
-        checkpoint_dirs: list[str] = sorted([f for f in os.listdir(search_dir) if
+        checkpoint_dirs: List[str] = sorted([f for f in os.listdir(search_dir) if
                                              f.startswith("TIR-Learner_v3_checkpoint_")])
         try:
             checkpoint_dirs.remove(os.path.basename(self.checkpoint_dir_output_path))
@@ -306,7 +307,7 @@ class TIRLearner:
                     raise EOFError(checkpoint_info_file_path)
                 timestamp_iso8601: str = checkpoint_info_file.readline().rstrip()
 
-                execution_progress_info: list[str] = json.loads(checkpoint_info_file.readline().rstrip())
+                execution_progress_info: List[str] = json.loads(checkpoint_info_file.readline().rstrip())
                 species: str = execution_progress_info[0]
                 module: int = int(execution_progress_info[1])
                 step: int = int(execution_progress_info[2])
@@ -318,7 +319,7 @@ class TIRLearner:
 
                 self.current_progress = [module, step]
 
-                working_df_filename_dict: dict[str, Optional[str]] = json.loads(
+                working_df_filename_dict: Dict[str, Optional[str]] = json.loads(
                     checkpoint_info_file.readline().rstrip())
                 for k, v in working_df_filename_dict.items():
                     if v is None:
@@ -329,7 +330,7 @@ class TIRLearner:
                     with open(df_dtype_file_name, 'r') as df_dtype_file:
                         if os.path.getsize(df_dtype_file_name) == 0:
                             raise EOFError(df_dtype_file_name)
-                        df_dtypes_dict: dict[str, str] = {k: eval(v) for k, v in
+                        df_dtypes_dict: Dict[str, str] = {k: eval(v) for k, v in
                                                           json.loads(df_dtype_file.readline().rstrip()).items()}
                     self[k] = pd.read_csv(f"{df_file_name}.csv", sep='\t', header=0,
                                           dtype=df_dtypes_dict, engine='c', memory_map=True)
@@ -358,7 +359,7 @@ class TIRLearner:
             return
 
     def reset_checkpoint_load_state(self, warn_info: str):
-        print("WARN: " + warn_info + "Will skip loading checkpoint and start from the very beginning.")
+        print("[WARN] " + warn_info + "Will skip loading checkpoint and start from the very beginning.")
         self.current_progress = [0, 0]
         self.clear()
 
@@ -369,7 +370,7 @@ class TIRLearner:
         module: int = self.current_progress[0]
         step: int = self.current_progress[1]
         # checkpoint_file_name = f"module_{module}_step_{step}_{timestamp_now_iso8601}.csv"
-        working_df_filename_dict: dict[str, Optional[str]] = {
+        working_df_filename_dict: Dict[str, Optional[str]] = {
             k: f"{k}_module_{module}_step_{step}_{get_timestamp_now_utc_iso8601()}" for k in self.keys()}
 
         for k, v in self.items():
@@ -407,7 +408,7 @@ class TIRLearner:
         shutil.copy(self.processed_de_novo_result_file_name,
                     os.path.join(self.checkpoint_dir_output_path, self.processed_de_novo_result_file_name))
         with open(os.path.join(self.checkpoint_dir_output_path, "info.txt"), 'r') as f:
-            lines: list[str] = f.readlines()
+            lines: List[str] = f.readlines()
 
         module: int = self.current_progress[0]
         step: int = self.current_progress[1]
@@ -445,7 +446,7 @@ class TIRLearner:
         module: str = "Module1"
 
         # Module 1, Step 1: Blast reference library in genome file
-        current_progress: list[int] = [1, 1]
+        current_progress: List[int] = [1, 1]
         if self.progress_check(current_progress):
             blast_reference.blast_genome_file(self)
             self.current_progress = current_progress
@@ -498,7 +499,7 @@ class TIRLearner:
         module: str = "Module2"
 
         # Module 2, Step 1: Run TIRvish to find inverted repeats
-        current_progress: list[int] = [2, 1]
+        current_progress: List[int] = [2, 1]
         if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 2, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)
@@ -604,7 +605,7 @@ class TIRLearner:
         module: str = "Module3"
 
         # Module 3, Step 1: Prepare data
-        current_progress: list[int] = [3, 1]
+        current_progress: List[int] = [3, 1]
         if self.progress_check(current_progress):
             print("Module 3, Step 1: Prepare data")
             self["base"] = prepare_data.execute(self, self["m2_homo"])
@@ -662,7 +663,7 @@ class TIRLearner:
         module: str = "Module4"
 
         # Module 4, Step 1: Run TIRvish to find inverted repeats
-        current_progress: list[int] = [4, 1]
+        current_progress: List[int] = [4, 1]
         if self.progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
             print("Module 4, Step 1: Run TIRvish to find inverted repeats")
             self["TIRvish"] = run_TIRvish.execute(self)

@@ -12,6 +12,8 @@ TSD = {"DTA": [8],
        "DTM": [10, 9, 8, 7],
        "DTT": [2]}
 
+TIR_MIN_LEN = 10
+
 
 def compare(tir1: str, tir2: str) -> int:
     d = 0
@@ -21,7 +23,7 @@ def compare(tir1: str, tir2: str) -> int:
     return d
 
 
-def sliding_window(seq1: str, seq2: str, TSD_length: int) -> tuple[list[str], list[str]]:
+def sliding_window(seq1: str, seq2: str, TSD_length: int) -> Tuple[list[str], list[str]]:
     set1 = []
     set2 = []
     for i in range(0, len(seq1) - TSD_length + 1):
@@ -31,8 +33,8 @@ def sliding_window(seq1: str, seq2: str, TSD_length: int) -> tuple[list[str], li
 
 
 def conserved(fam: str, s1: str) -> bool:
-    noMotif = ["DTX", "NonTIR"]
-    if fam in noMotif:
+    no_motif = ["DTX", "NonTIR"]
+    if fam in no_motif:
         return True
     else:
         motif1 = " "
@@ -74,7 +76,7 @@ def conserved(fam: str, s1: str) -> bool:
         return False
 
 
-def get_difference(set1: list[str], set2: list[str]) -> dict[str, int]:
+def get_difference(set1: List[str], set2: List[str]) -> Dict[str, int]:
     tsd_diff = {}
     for i in range(0, len(set1)):
         for j in range(0, len(set2)):
@@ -84,7 +86,7 @@ def get_difference(set1: list[str], set2: list[str]) -> dict[str, int]:
     return tsd_diff
 
 
-def conserved_DTH(set1: list[str], TSD_dffset: dict[str, int], l: int) -> bool:
+def conserved_DTH(set1: List[str], TSD_dffset: Dict[str, int], l: int) -> bool:
     for i in TSD_dffset:
         if TSD_dffset[i] < l * 0.2:
             s1 = set1[int(i.split(":")[0])]
@@ -93,7 +95,7 @@ def conserved_DTH(set1: list[str], TSD_dffset: dict[str, int], l: int) -> bool:
     return False
 
 
-def conserved_DTT(set1: list[str], TSD_dffset: dict[str, int], l: int) -> bool:
+def conserved_DTT(set1: List[str], TSD_dffset: Dict[str, int], l: int) -> bool:
     for i in TSD_dffset:
         if TSD_dffset[i] < l * 0.2:
             s1 = set1[int(i.split(":")[0])]
@@ -102,7 +104,7 @@ def conserved_DTT(set1: list[str], TSD_dffset: dict[str, int], l: int) -> bool:
     return False
 
 
-def is_TSD(TSD_dffset: dict[str, int], l: int) -> bool:
+def is_TSD(TSD_dffset: Dict[str, int], l: int) -> bool:
     for i in TSD_dffset:
         if TSD_dffset[i] < l * 0.2:
             return True
@@ -110,20 +112,19 @@ def is_TSD(TSD_dffset: dict[str, int], l: int) -> bool:
 
 
 def check_TIR(x: pd.Series) -> Union[int, float]:
-    family = x[0]  # Use idx as the column name for TIR superfamily may differ
+    family = x[0]  # Use index since the column name for TIR superfamily may differ
     s = x["seq"][200:-200]
     len_s = len(s)
-    min_l = 10
 
     if len_s <= 200:
-        l_list = list(range(min_l, int(len_s / 2)))
+        l_list = list(range(TIR_MIN_LEN, int(len_s / 2)))
     else:
-        l_list = list(range(min_l, 100))
+        l_list = list(range(TIR_MIN_LEN, 100))
 
     for l in l_list:
         s1 = s[0:l]
         s2_ = s[-l:]
-        s2 = Seq(s2_).reverse_complement()
+        s2 = str(Seq(s2_).reverse_complement())
         d = compare(s1, s2)
         if d < l * 0.2 and conserved(family, s1):
             return l
@@ -131,7 +132,7 @@ def check_TIR(x: pd.Series) -> Union[int, float]:
 
 
 def check_TSD(x: pd.Series) -> Union[int, float]:
-    family = x[0]  # Use idx as the column name for TIR superfamily may differ
+    family = x[0]  # Use index since the column name for TIR superfamily may differ
     s = x["seq"]
     l = TSD[family]
 
@@ -212,7 +213,7 @@ def execute(TIRLearner_instance, module: str) -> pd.DataFrame:
     df[["TIR1", "TIR2"]] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(get_TIR, axis=1)
     print("  Step 4/6: Calculating TIR percentage")
     df["TIR_percent"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: TIR_TSD_percent(x["TIR1"], Seq(x["TIR2"]).reverse_complement()), axis=1)
+        lambda x: TIR_TSD_percent(x["TIR1"], str(Seq(x["TIR2"]).reverse_complement())), axis=1)
     print("  Step 5/6: Retrieving TSD")
     df[["TSD1", "TSD2"]] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(get_TSD, axis=1)
     print("  Step 6/6: Calculating TSD percentage")
