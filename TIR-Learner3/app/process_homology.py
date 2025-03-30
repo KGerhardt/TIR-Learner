@@ -27,7 +27,7 @@ def _process_homology_full_coverage(genome_name: str, species: str, TIR_type: st
     return df
 
 
-def _process_homology_eighty_similarity(file_name: str, species: str, TIR_type: str) -> Optional[pd.DataFrame]:
+def _process_homology_eighty_similarity(file_name: str, species: str, TIR_type: str, flag_verbose: bool = True) -> Optional[pd.DataFrame]:
     blast = f"{file_name}{SPLITER}blast{SPLITER}{species}_{TIR_type}_RefLib"
     df = None
     if os.path.exists(blast) and os.path.getsize(blast) != 0:
@@ -35,9 +35,9 @@ def _process_homology_eighty_similarity(file_name: str, species: str, TIR_type: 
                          engine='c', memory_map=True)
         df = df.loc[(df["qcovhsp"] >= 80) & (df["pident"] >= 80)].reset_index(drop=True)
 
-        df["sseqid"] = df.swifter.progress_bar(True).apply(lambda x: x["qseqid"].split(":")[0], axis=1)
-        df["sstart"] = df.swifter.progress_bar(True).apply(lambda x: int(x["qseqid"].split(":")[1]), axis=1)
-        df["send"] = df.swifter.progress_bar(True).apply(lambda x: int(x["qseqid"].split(":")[2]), axis=1)
+        df["sseqid"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: x["qseqid"].split(":")[0], axis=1)
+        df["sstart"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: int(x["qseqid"].split(":")[1]), axis=1)
+        df["send"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: int(x["qseqid"].split(":")[2]), axis=1)
 
         df = df.sort_values(["sseqid", "sstart", "send", "qcovhsp", "pident"],
                             ascending=[True, True, True, True, True], ignore_index=True)
@@ -78,7 +78,10 @@ def select_full_coverage(TIRLearner_instance) -> pd.DataFrame:
 
 def select_eighty_similarity(TIRLearner_instance) -> pd.DataFrame:
     print("Module 2, Step 7: Select 80% similar entries from blast results")
-    mp_args_list = [(TIRLearner_instance.processed_de_novo_result_file_name, TIRLearner_instance.species, TIR_type)
+    mp_args_list = [(TIRLearner_instance.processed_de_novo_result_file_name,
+                     TIRLearner_instance.species,
+                     TIR_type,
+                     TIRLearner_instance.flag_verbose)
                     for TIR_type in TIR_SUPERFAMILIES]
     with mp.Pool(int(TIRLearner_instance.processors)) as pool:
         df_list = pool.starmap(_process_homology_eighty_similarity, mp_args_list)

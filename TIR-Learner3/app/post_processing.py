@@ -33,7 +33,7 @@ def _combine_all(df_list: List[pd.DataFrame]) -> Optional[pd.DataFrame]:
     return df.drop(columns="TIR_pair_str")
 
 
-def _format_df_in_gff3_format(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _format_df_in_gff3_format(df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataFrame:
     df = df_in.copy()
     df["attributes"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: (f"TIR:{x['TIR1']}_{x['TIR2']}_{x['TIR_percent']}_"
@@ -135,7 +135,7 @@ def check_element_TIR_overlap(x1: int, y1: int, x2: int, y2: int, m1: int, n1: i
 #     return df
 
 
-def _remove_overlap(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _remove_overlap(df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataFrame:
     """
     TODO documentation needed
     :param df_in:
@@ -184,8 +184,8 @@ def _remove_overlap(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
 # ======================================================================================================================
 
 
-def _get_final_fasta_file(df_in: pd.DataFrame, genome_file: str, genome_name: str,
-                          processors: int, flag_verbose: bool, file_path: str):
+def _get_final_fasta_file(df_in: pd.DataFrame, genome_file: str, genome_name: str, processors: int, file_path: str,
+                          flag_verbose: bool = True):
     df = df_in.copy()
     df["name"] = df.swifter.progress_bar(flag_verbose).apply(
         lambda x: f">{genome_name}_{x['seqid']}_{x['sstart']}_{x['send']}_{x['type']}_{x['attributes']}", axis=1)
@@ -218,8 +218,8 @@ def execute(TIRLearner_instance, raw_result_df_list: List[pd.DataFrame]):
                    sep="\t")
 
     print("  Step 3/6: Generating raw fasta file")
-    _get_final_fasta_file(df_gff3, genome_file, genome_name, processors, flag_verbose,
-                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn.fa"))
+    _get_final_fasta_file(df_gff3, genome_file, genome_name, processors,
+                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn.fa"), flag_verbose)
     del df_gff3
     gc.collect()
 
@@ -244,5 +244,5 @@ def execute(TIRLearner_instance, raw_result_df_list: List[pd.DataFrame]):
                             header=False, sep="\t")
 
     print("  Step 6/6: Generating final fasta file")
-    _get_final_fasta_file(df_gff3_filtered, genome_file, genome_name, processors, flag_verbose,
-                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn_filter.fa"))
+    _get_final_fasta_file(df_gff3_filtered, genome_file, genome_name, processors,
+                          os.path.join(result_output_dir_path, f"{genome_name}_FinalAnn_filter.fa"), flag_verbose)

@@ -18,7 +18,7 @@ def _get_sequence_fragment(x: pd.Series, feature_size: int = 200) -> str:
     return s1 + s2
 
 
-def _feature_encoding(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _feature_encoding(df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataFrame:
     feature_int_encoder = LabelEncoder()
     voc = ["A", "C", "G", "T", "N"]
     num_classes = len(voc)
@@ -69,7 +69,7 @@ def _ml_predict(df_in: pd.DataFrame, genome_file: str, path_to_model: str) -> Op
     return df
 
 
-def _post_processing(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _post_processing(df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataFrame:
     df = df_in.loc[:, ["id", "TIR_type"]]
     df = df[df["TIR_type"] != "NonTIR"].reset_index(drop=True)
     print("  Step 5/7: Retrieving sequence ID")

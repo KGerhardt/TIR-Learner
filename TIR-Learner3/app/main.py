@@ -711,7 +711,7 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        # Module 2, Step 6: Check TIR and TSD
+        # Module 2, Step 9: Check TIR and TSD
         current_progress = [2, 9]
         if self.__progress_check(current_progress):
             print("Module 2, Step 9: Check TIR and TSD")
@@ -721,7 +721,7 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
-        # Module 2, Step 7: Save module result
+        # Module 2, Step 10: Save module result
         current_progress = [2, 10]
         if self.__progress_check(current_progress):
             print("Module 2, Step 10: Save module result")
