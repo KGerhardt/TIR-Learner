@@ -1,7 +1,10 @@
-from const import *
+#!/usr/app/env python3
+# -*- coding: utf-8 -*-
+
+from shared import *
 
 
-def get_sequence_fragment(x: pd.Series, feature_size: int = 200) -> str:
+def _get_sequence_fragment(x: pd.Series, feature_size: int = 200) -> str:
     seq = x["seq"]
     len_seq = len(seq)
     if len_seq >= feature_size * 2:
@@ -10,12 +13,12 @@ def get_sequence_fragment(x: pd.Series, feature_size: int = 200) -> str:
     s2 = seq[int(len_seq / 2):]
     n1 = "N" * (feature_size - len(s1))
     n2 = "N" * (feature_size - len(s2))
-    s1 = s1 + n1
+    s1 += n1
     s2 = n2 + s2
     return s1 + s2
 
 
-def feature_encoding(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _feature_encoding(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     feature_int_encoder = LabelEncoder()
     voc = ["A", "C", "G", "T", "N"]
     num_classes = len(voc)
@@ -35,7 +38,7 @@ def feature_encoding(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     return df
 
 
-def predict(df_in: pd.DataFrame, genome_file: str, path_to_model: str) -> Optional[pd.DataFrame]:
+def _ml_predict(df_in: pd.DataFrame, genome_file: str, path_to_model: str) -> Optional[pd.DataFrame]:
     model = keras.models.load_model(path_to_model)
     pre_feature = df_in["feature"].to_numpy()
     df = df_in.drop(columns="feature")
@@ -66,7 +69,7 @@ def predict(df_in: pd.DataFrame, genome_file: str, path_to_model: str) -> Option
     return df
 
 
-def postprocessing(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
+def _post_processing(df_in: pd.DataFrame, flag_verbose: bool) -> pd.DataFrame:
     df = df_in.loc[:, ["id", "TIR_type"]]
     df = df[df["TIR_type"] != "NonTIR"].reset_index(drop=True)
     print("  Step 5/7: Retrieving sequence ID")
@@ -84,11 +87,9 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
     df = TIRLearner_instance["base"].copy()
 
     print("  Step 1/7: Getting sequence fragment for prediction")
-    df["seq_frag"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(get_sequence_fragment, axis=1)
+    df["seq_frag"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(_get_sequence_fragment, axis=1)
     df = df.drop(columns="seq")
 
-    df = feature_encoding(df, TIRLearner_instance.flag_verbose)
-
-    df = predict(df, TIRLearner_instance.genome_file_path, CNN_MODEL_DIR_PATH)
-
-    return postprocessing(df, TIRLearner_instance.flag_verbose)
+    df = _feature_encoding(df, TIRLearner_instance.flag_verbose)
+    df = _ml_predict(df, TIRLearner_instance.genome_file_path, CNN_MODEL_DIR_ABS_PATH)
+    return _post_processing(df, TIRLearner_instance.flag_verbose)

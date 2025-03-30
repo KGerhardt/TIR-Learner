@@ -1,4 +1,7 @@
-from const import *
+#!/usr/app/env python3
+# -*- coding: utf-8 -*-
+
+from shared import *
 
 
 def TA_repeats_check(df_in: pd.DataFrame, column: str = "seq", percent_threshold: float = 0.7) -> pd.DataFrame:
@@ -9,14 +12,14 @@ def TA_repeats_check(df_in: pd.DataFrame, column: str = "seq", percent_threshold
     return df[~df["TA_repeats_check"]].drop(columns="TA_repeats_check").reset_index(drop=True)
 
 
-def check_N(s: str) -> bool:
+def _check_N(s: str) -> bool:
     n = s.count("N")
     if n > 0:
         return True
     return False
 
 
-def check_N_percentage(s: str) -> bool:
+def _check_N_percentage(s: str) -> bool:
     n = s.count("N")
     p = n / len(s)
     if p >= 0.20:
@@ -24,13 +27,13 @@ def check_N_percentage(s: str) -> bool:
     return False
 
 
-def find_digits_sum(string: str) -> int:
+def _find_digits_sum(string: str) -> int:
     pattern = r"(\d+)"
     l = re.findall(pattern, string)
     return sum([int(i) for i in l])
 
 
-def TSD_check(x: pd.Series) -> bool:
+def _TSD_check(x: pd.Series) -> bool:
     TSD = x["TSD"]
     if ((len(TSD) > 6 or TSD == "TAA" or TSD == "TTA" or TSD == "TA" or x["seq"][0:4] == "CACT") or
             x["seq"][0:4] == "GTGA"):
@@ -52,7 +55,7 @@ def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 1/7: Getting TIR")
     df["TIR_len"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: find_digits_sum(x["id"].split(":")[-2]), axis=1)
+        lambda x: _find_digits_sum(x["id"].split(":")[-2]), axis=1)
     df["TIR"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
         lambda x: x["seq"][0:x["TIR_len"]], axis=1)
 
@@ -61,7 +64,7 @@ def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 3/7: Checking percentage of N on sequence")
     df["check_N_per_seq_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: np.nan if check_N_percentage(x["seq"]) else False, axis=1)
+        lambda x: np.nan if _check_N_percentage(x["seq"]) else False, axis=1)
     df = df.dropna(ignore_index=True).copy()
 
     print("  Step 4/7: Checking TA repeats on TIR")
@@ -69,7 +72,7 @@ def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 5/7: Checking N existence on TIR")
     df["check_N_TIR_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: np.nan if check_N(x["TIR"]) else False, axis=1)
+        lambda x: np.nan if _check_N(x["TIR"]) else False, axis=1)
     df = df.dropna(ignore_index=True).copy()
 
     print("  Step 6/7: Getting TSD")
@@ -78,11 +81,11 @@ def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 7/7: Checking TSD")
     df["TSD_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: True if TSD_check(x) else np.nan, axis=1)
+        lambda x: True if _TSD_check(x) else np.nan, axis=1)
     df = df.dropna(ignore_index=True).loc[:, ["id", "seq"]].copy()
 
     if df.shape[0] == 0:
-        print("NOTICE: No TIR was found by GRF.")
+        print("[NOTICE] No TIR candidates was found by GRF.")
         return None
 
     df["id"] = ">" + df["id"]
@@ -93,12 +96,12 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df_in = TIRLearner_instance["TIRvish"]
 
     if df_in is None:
-        print("NOTICE: No TIR candidates was found by TIRvish.")
+        print("[NOTICE] No TIR candidates was found by TIRvish.")
         return None
 
     df = df_in[df_in["end"] - df_in["start"] + 1 >= 50].copy()
     if df.shape[0] == 0:
-        print("NOTICE: No valid TIR candidates was found by TIRvish.")
+        print("[NOTICE] No valid TIR candidates was found by TIRvish.")
         return None
 
     print("  Step 1/5: Getting TIR")
@@ -120,7 +123,7 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 3/5: Checking percentage of N on sequence")
     df["check_N_per_seq_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: np.nan if check_N_percentage(x["seq"]) else False, axis=1)
+        lambda x: np.nan if _check_N_percentage(x["seq"]) else False, axis=1)
     df = df.dropna(ignore_index=True).copy()
 
     print("  Step 4/5: Checking TA repeats on TIR")
@@ -129,10 +132,10 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
 
     print("  Step 5/5: Checking N existence on TIR")
     df["check_N_TIR1_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: np.nan if check_N(x["TIR1"]) else False, axis=1)
+        lambda x: np.nan if _check_N(x["TIR1"]) else False, axis=1)
     df = df.dropna(ignore_index=True).copy()
     df["check_N_TIR2_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
-        lambda x: np.nan if check_N(x["TIR2"]) else False, axis=1)
+        lambda x: np.nan if _check_N(x["TIR2"]) else False, axis=1)
     df = df.dropna(ignore_index=True).loc[:, ["id", "seq"]].copy()
 
     if df.shape[0] == 0:
@@ -148,8 +151,9 @@ def combine_de_novo_result(TIRLearner_instance):
         df = None
 
     if df is None or df.shape[0] == 0:
-        raise SystemExit("[ERROR] No TIR was found by TIRvish and GRF in the de novo process. "
+        raise SystemExit("[WARN] No TIR was found by TIRvish and GRF in the de novo process. "
                          "Check your input file as well as arguments.")
+    # TODO add and use safe exit function that clears temp dir
 
     df.to_csv(TIRLearner_instance.processed_de_novo_result_file_name, sep='\n', header=False, index=False)
     del TIRLearner_instance["TIRvish"]

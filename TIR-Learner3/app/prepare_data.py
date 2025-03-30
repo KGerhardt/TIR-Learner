@@ -1,4 +1,7 @@
-from const import *
+#!/usr/app/env python3
+# -*- coding: utf-8 -*-
+
+from shared import *
 
 
 # def getNonHomo(file, df_homo):

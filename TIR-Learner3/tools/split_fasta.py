@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/app/env python3
 # Split fasta tool
 # Tianyu Lu (tlu83@wisc.edu)
 # 2024-01-20

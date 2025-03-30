@@ -1,29 +1,28 @@
-#!/usr/bin/env python3
-# Tianyu Lu (tlu83@wisc.edu)
-# 2025-02-13
+#!/usr/app/env python3
+# -*- coding: utf-8 -*-
+# Tianyu (Sky) Lu (tianyu@lu.fm)
+# 2025-03-29
 
 import os
 import sys
 
-sys.path.insert(0, f"{os.path.dirname(__file__)}/bin")
+sys.path.insert(0, f"{os.path.dirname(__file__)}/app")
 
-# Use if True to suppress the PEP8: E402 warning
-if True:  # noqa: E402
-    import argparse
-    import shutil
-    from typing import List, Tuple, Optional
+# Use noqa: E402 to suppress "PEP8: E402" --------------------------------------------↴
+import argparse                                                                 # noqa: E402
+import shutil                                                                   # noqa: E402
+from typing import List, Tuple, Optional                                        # noqa: E402
 
-    from bin.main import TIRLearner
-    from bin.const import DEFAULT_ALLOCATED_PROCESSORS, SKIP_TIRVISH, SKIP_GRF
+from app.main import TIRLearner                                                 # noqa: E402
+from app.shared import DEFAULT_ALLOCATED_PROCESSORS, SKIP_TIRVISH, SKIP_GRF     # noqa: E402
 
-VERSION = "v3.0.6"
-INFO = ("by Tianyu (Sky) Lu (tlu83@wisc.edu)\n"
-        "released under GPLv3")
+VERSION = "v3.0.7"
+INFO = "by Tianyu (Sky) Lu (tianyu@lu.fm) released under GPLv3"
 
 
-def process_additional_args(additional_args: Optional[List[str]]) -> Tuple[str, ...]:
+def _process_additional_args(additional_args: Optional[List[str]]) -> Optional[Tuple[str, ...]]:
     if not additional_args:
-        return tuple()
+        return None
     # processed_additional_args = tuple(map(str.upper, additional_args))
     processed_additional_args = tuple(map(lambda x: str(x.upper()), additional_args))
     if (SKIP_TIRVISH in processed_additional_args) and (SKIP_GRF in processed_additional_args):
@@ -36,7 +35,7 @@ def main():
     parser = argparse.ArgumentParser(prog="TIR-Learner",
                                      description="TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat "
                                                  "(TIR) transposable elements annotation in eukaryotic genomes")
-    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION}\n{INFO}")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {VERSION} {INFO}")
 
     parser.add_argument("-f", "--genome_file", help="Genome file in fasta format",
                         type=str, required=True)
@@ -80,50 +79,36 @@ def main():
 
     parsed_args = parser.parse_args()
 
-    genome_file = parsed_args.genome_file
-    genome_name = parsed_args.genome_name
-    species = parsed_args.species
-
-    TIR_length = parsed_args.length
-    processors = parsed_args.processors
-    para_mode = parsed_args.mode
-
-    working_dir = parsed_args.working_dir
-    output_dir = parsed_args.output_dir
+    genome_file: str = parsed_args.genome_file
+    output_dir: Optional[str] = parsed_args.output_dir
     if not output_dir:
         output_dir = os.path.dirname(genome_file)
-    checkpoint_input = parsed_args.checkpoint_dir
-
-    flag_verbose = parsed_args.verbose
-    flag_debug = parsed_args.debug
-
-    GRF_path = parsed_args.grf_path.replace('"', "")
-    gt_path = parsed_args.gt_path.replace('"', "")
-    additional_args = process_additional_args(parsed_args.additional_args)
-    if additional_args:
-        print(f"[INFO] Additional args: {additional_args} captured.")
-
-    # Transforming the possible relative path into absolute path
     genome_file = os.path.abspath(genome_file)
     output_dir = os.path.abspath(output_dir)
-    GRF_path = os.path.abspath(GRF_path)
-    gt_path = os.path.abspath(gt_path)
 
+    checkpoint_input: Optional[str] = parsed_args.checkpoint_dir
     if checkpoint_input and checkpoint_input != "auto":
         checkpoint_input = os.path.abspath(checkpoint_input)
 
+    GRF_path: str = os.path.abspath(parsed_args.grf_path.replace('"', ""))
+    gt_path: str = os.path.abspath(parsed_args.gt_path.replace('"', ""))
+
+    additional_args: Optional[Tuple[str, ...]] = _process_additional_args(parsed_args.additional_args)
+    if additional_args:
+        print(f"[INFO] Additional args: {additional_args} captured.")
+
     TIRLearner_instance = TIRLearner(
         genome_file_path=genome_file,
-        genome_name=genome_name,
-        species=species,
-        TIR_length=TIR_length,
-        processors=processors,
-        para_mode=para_mode,
-        working_dir_path=working_dir,
+        genome_name=parsed_args.genome_name,
+        species=parsed_args.species,
+        TIR_length=parsed_args.length,
+        processors=parsed_args.processors,
+        para_mode=parsed_args.mode,
+        working_dir_path=parsed_args.working_dir,
         output_dir_path=output_dir,
         checkpoint_dir_input_path=checkpoint_input,
-        flag_verbose=flag_verbose,
-        flag_debug=flag_debug,
+        flag_verbose=parsed_args.verbose,
+        flag_debug=parsed_args.debug,
         GRF_path=GRF_path,
         gt_path=gt_path,
         additional_args=additional_args

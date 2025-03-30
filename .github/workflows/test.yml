@@ -15,6 +15,8 @@ jobs:
   ci-test:
     name: ci-test
     runs-on: ubuntu-latest
+    env:
+      LC_ALL: C  # for sort command
     defaults:
       run:
         shell: bash -el {0}
@@ -28,6 +30,10 @@ jobs:
           auto-activate-base: false
       - run: python3 TIR-Learner3/TIR-Learner.py --version
       - run: |
-          python3 TIR-Learner3/TIR-Learner.py -f test/genome.fa -s others -t 2 -l 5000 -o ./
-          sha256sum TIR-Learner-Result/* > hash.txt
-          cmp hash.txt test/hash.txt --silent
+          # Test Case: --species rice
+          python3 TIR-Learner3/TIR-Learner.py -f test/test_4chr_1mb_rice.fa -s rice -t 4 -l 5000 -o ./
+          sha256sum TIR-Learner-Result/* | sort --key=2 | cmp - "test/Sample Result/hash_rice.txt"
+      - run: |
+          # Test Case: --species others
+          python3 TIR-Learner3/TIR-Learner.py -f test/test_4chr_1mb_rice.fa -s others -t 4 -l 5000 -o ./
+          sha256sum TIR-Learner-Result/* | sort --key=2 | cmp - "test/Sample Result/hash_others.txt"

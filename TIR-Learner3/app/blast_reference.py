@@ -1,9 +1,12 @@
-from const import *
+#!/usr/app/env python3
+# -*- coding: utf-8 -*-
+
+from shared import *
 
 
-def blast_ref_lib_in_genome_file(genome_db: str, genome_name: str,
-                                 ref_lib: str, ref_lib_file_path: str, processors: int):
-    out = f"{genome_name}{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}{ref_lib}"
+def _blast_ref_lib_in_genome_file(genome_db: str, genome_name: str,
+                                  ref_lib: str, ref_lib_file_path: str, processors: int):
+    out = f"{genome_name}{SPLITER}blast{SPLITER}{ref_lib}"
     # out = genome_name + FILE_NAME_SPLITER + "blast" + FILE_NAME_SPLITER + ref_lib
     blast = (f"blastn -max_hsps 5 -perc_identity 80 -qcov_hsp_perc 100 -query \"{ref_lib_file_path}\" "
              f"-db \"{genome_db}\" -num_threads {processors} -outfmt '6 qacc sacc length pident gaps mismatch "
@@ -12,8 +15,8 @@ def blast_ref_lib_in_genome_file(genome_db: str, genome_name: str,
     subprocess.Popen(blast, shell=True).wait()
 
 
-def blast_de_novo_result_in_ref_lib(file_name: str, ref_lib: str, ref_lib_file_path: str, processors: int):
-    out = f"{file_name}{FILE_NAME_SPLITER}blast{FILE_NAME_SPLITER}{ref_lib}"
+def _blast_de_novo_result_in_ref_lib(file_name: str, ref_lib: str, ref_lib_file_path: str, processors: int):
+    out = f"{file_name}{SPLITER}blast{SPLITER}{ref_lib}"
     # out = file_name + FILE_NAME_SPLITER + "blast" + FILE_NAME_SPLITER + ref_lib
     blast = (f"blastn -max_hsps 5 -perc_identity 80 -qcov_hsp_perc 80 -query \"{file_name}\" "
              f"-subject \"{ref_lib_file_path}\" -num_threads {processors} -outfmt '6 qseqid sseqid length pident "
@@ -30,7 +33,7 @@ def blast_de_novo_result_in_ref_lib(file_name: str, ref_lib: str, ref_lib_file_p
 
 def blast_genome_file(TIRLearner_instance):
     print("Module 1, Step 1: Blast reference library in genome file")
-    genome_db = TIRLearner_instance.genome_file_path + FILE_NAME_SPLITER + "db"
+    genome_db = TIRLearner_instance.genome_file_path + SPLITER + "db"
     mkDB = (f"makeblastdb -in {TIRLearner_instance.genome_file_path} -out {genome_db} "
             f"-parse_seqids -dbtype nucl 2> /dev/null")
     subprocess.Popen(mkDB, shell=True).wait()
@@ -42,9 +45,9 @@ def blast_genome_file(TIRLearner_instance):
 
     # with mp.Pool(int(TIRLearner_instance.processors)) as pool:
     with mp.Pool(TIRLearner_instance.processors) as pool:
-        pool.starmap(blast_ref_lib_in_genome_file, mp_args_list)
+        pool.starmap(_blast_ref_lib_in_genome_file, mp_args_list)
 
-    subprocess.Popen(["find", ".", "-name", f"*{FILE_NAME_SPLITER}db*", "-delete"])  # remove blast db files
+    subprocess.Popen(["find", ".", "-name", f"*{SPLITER}db*", "-delete"])  # remove blast db files
 
 
 def blast_de_novo_result(TIRLearner_instance):
@@ -56,4 +59,4 @@ def blast_de_novo_result(TIRLearner_instance):
 
     # with mp.Pool(int(TIRLearner_instance.processors)) as pool:
     with mp.Pool(TIRLearner_instance.processors) as pool:
-        pool.starmap(blast_de_novo_result_in_ref_lib, mp_args_list)
+        pool.starmap(_blast_de_novo_result_in_ref_lib, mp_args_list)
