@@ -59,17 +59,42 @@ TIR-Learner combines multiple approaches to identify and classify TIR transposon
 
 ### Using Conda/Mamba (Recommended)
 
-```bash
-conda create -n TIR-Learner
-conda activate TIR-Learner
+*If you do not have conda/mamba installed, you are strongly recommended to use Miniforge. For more information, please refer to [conda-forge/miniforge](https://github.com/conda-forge/miniforge).*
+
+Note: In all installation commands, `-c conda-forge` MUST be specified before `-c bioconda` to ensure conda-forge is having higher priority over bioconda so that the latest packages are installed (according to [Channels: Specifying channels when installing packages](https://docs.conda.io/projects/conda/en/latest/user-guide/concepts/channels.html#specifying-channels-when-installing-packages)).
+
+#### Install with a new environment
+
+You can create a new environment with any name (we use `TIRLearner_env` as an example) and install TIR-Learner in it using the following one-liner command:
+
+```shell
+mamba create -n TIRLearner_env -c conda-forge -c bioconda tir-learner
+```
+
+#### Install in an existing environment
+
+```shell
 mamba install -c conda-forge -c bioconda tir-learner
 ```
 
-Note: `-c conda-forge` must be specified before `-c bioconda` to ensure conda-forge is having higher priority over bioconda so that the latest packages are installed (according to [Channel Customization](https://docs.conda.io/projects/conda/en/latest/commands/install.html#channel-customization)).
+#### Enforce PyTorch Build (CUDA or CPU-only)
+
+Sometimes users may want to force PyTorch to use CPU only (or conversely force using CUDA). For example, while HPC nodes may have GPUs that trigger conda to automatically install CUDA-enabled PyTorch builds, users without GPU access permissions will encounter runtime errors while using TIR-Learner. 
+
+In such cases, you can specify a CPU-only PyTorch build by adding `"pytorch=*=*cpu*"` in the installation commands. For instance:
+
+```shell
+mamba create -n TIRLearner_env -c conda-forge -c bioconda tir-learner "pytorch=*=*cpu*"
+```
+
+Similarly, you can add `"pytorch=*=*cuda*"` in the installation commands to enforce CUDA usage.
+
 
 ### Manual Installation
 
-Requirements:
+Clone the repository and install all the dependencies. `TIR-Learner.py` is the entry point of the program.
+
+#### Dependencies
 
 - Python >=3.8
 - BLAST
@@ -86,7 +111,7 @@ Requirements:
 
 ## Usage
 
-```bash
+```shell
 TIR-Learner [-h] [-v] -f GENOME_FILE -s SPECIES [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR] [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
 ```
 
@@ -219,12 +244,14 @@ TIR-Learner -f ./test/genome.fa -s others -p 2 -l 5000 -c ./ -w ./test/ -d --ver
 
 ## Program Workflow
 
-<!-- ![TIR-Learner Workflow](./docs/TIR-Learner3_workflow.drawio.png) -->
-
+<div style="text-align:center; width: 100%">
+<br>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./docs/TIR-Learner3_workflow_light_mode.drawio.png">
-  <img alt="TIR-Learner v3 Workflow" src="docs/TIR-Learner3_workflow_dark_mode.drawio.png">
+  <source media="(prefers-color-scheme: dark)" srcset="./docs/TIR-Learner3_workflow_white.drawio.png">
+  <img style="width: 100%; max-width: 5485px" alt="TIR-Learner v3 Workflow" src="./docs/TIR-Learner3_workflow_black.drawio.png">
 </picture>
+<br><br>
+</div>
 
 TIR-Learner v3 consists of two main processing paths:
 
@@ -322,7 +349,7 @@ The manuscript of TIR-Learner v3 is currently in preparation. Presentation slide
 
 Previous versions:
 
-- TIR-Learner v2 (Part of EDTA):  
+- TIR-Learner v2 (Part of EDTA v1):  
 [Benchmarking transposable element annotation methods for creation of a streamlined, comprehensive pipeline](https://doi.org/10.1186/s13059-019-1905-y)
 - TIR-Learner v1:  
 [TIR-Learner, a New Ensemble Method for TIR Transposable Element Annotation, Provides Evidence for Abundant New Transposable Elements in the Maize Genome](https://doi.org/10.1016/j.molp.2019.02.008)
