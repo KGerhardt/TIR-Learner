@@ -3,7 +3,7 @@
 
 from shared import *
 
-from get_fasta_sequence import get_fasta_pieces_SeqIO
+from get_fasta_sequence import get_fasta_pieces_SeqIO_tirvish
 
 
 # Use noqa to suppress "Shadowing built-ins" -------------------↴
@@ -68,30 +68,6 @@ def split_sequence_evenly(seq_record: SeqRecord, split_seq_len: int, overlap_seq
             records.append(create_sequence_record(overlap_seg, overlap_id))
             # records.append(SeqRecord(overlap_seg, id=overlap_id, description=""))
     return records
-
-
-# def process_fasta(genome_file):
-#     """
-#     Write each sequence in the FASTA file into separate FASTA files and further split the sequence into segments if
-#     when needed based on a length threshold split_seq_len.
-#
-#     Parameters:
-#     - file_name: Path to the FASTA file.
-#     - split_seq_len: Length threshold for splitting sequence.
-#     """
-#     split_fasta_files_list = []
-#     for seq_record in SeqIO.parse(genome_file, "fasta"):
-#         if len(seq_record) >= tirvish_split_seq_len:
-#             segments = split_sequence_evenly(seq_record, tirvish_split_seq_len, tirvish_overlap_seq_len)
-#             for segment in segments:
-#                 file_name = f"{segment.id}.fasta"
-#                 SeqIO.write(segment, file_name, "fasta")
-#                 split_fasta_files_list.append(file_name)
-#         else:
-#             file_name = f"{seq_record.id}.fasta"
-#             SeqIO.write(seq_record, file_name, "fasta")
-#             split_fasta_files_list.append(file_name)
-#     return split_fasta_files_list
 
 
 def _save_fasta_file(seq_record: SeqRecord) -> str:
@@ -208,6 +184,7 @@ def _get_TIRvish_result_df(TIRvish_result_gff3_file_path: str, flag_debug: bool,
 
     if not flag_debug:
         subprocess.Popen(["unlink", TIRvish_result_gff3_file_path])
+        
     return pd.DataFrame(df_data_dict).astype(df_type)
 
 
@@ -222,6 +199,8 @@ def _run_TIRvish_native(genome_file: str, genome_name: str, TIR_length: int,
 def _run_TIRvish_py_para(genome_file: str, genome_name: str, TIR_length: int,
                          processors: int, flag_debug: bool, gt_path: str,
                          fasta_files_path_list: List[str]) -> pd.DataFrame:
+                         
+                         
     os.makedirs(f"{SPLIT_FASTA_TAG}_mp", exist_ok=True)
     os.chdir(f"./{SPLIT_FASTA_TAG}_mp")
 
@@ -263,5 +242,22 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
     else:
         df = _run_TIRvish_py_para(genome_file, genome_name, TIR_length, processors, flag_debug, gt_path,
                                   fasta_files_path_list)
+                                  
+    #Here is where cleaning goes:
+    df = df[df["end"] - df["start"] + 1 >= 50].copy() #initial length clean
+    #Add TIR loc values
+    df["TIR1_start"] = df["TIR1_start"] - df["start"]
+    df.loc[df["TIR1_start"] < 0, "TIR1_start"] = 0
+    df["TIR1_end"] = df["TIR1_end"] - df["start"]
 
-    return get_fasta_pieces_SeqIO(genome_file, df, processors, flag_verbose)
+    df["TIR2_start"] = df["TIR2_start"] - df["start"]
+    df.loc[df["TIR2_start"] < 0, "TIR2_start"] = 0
+    df["TIR2_end"] = df["TIR2_end"] - df["start"]
+	
+    #Cleaning has been pushed to the sequence retrieval component so that sequences which are not needed are not kept
+    df = get_fasta_pieces_SeqIO_tirvish(genome_file, df, processors, flag_verbose)
+
+    #Final cleanup to only the columns process_de_novo_results would have produced
+    df = df.dropna(ignore_index=True).loc[:, ["id", "seq"]].copy()
+
+    return df

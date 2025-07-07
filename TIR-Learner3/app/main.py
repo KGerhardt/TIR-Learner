@@ -796,6 +796,27 @@ class TIRLearner:
         terminal_print("Module 4 Begin")
         module: str = "Module4"
 
+
+        '''
+        Overhaul plan:
+        
+        TIRvish creates nice clean GFFs that this program then uses to produce subsetted fastas with bio.SeqIO, which it writes as dataframes with the format
+        
+        [seqid] [sequence] [sequence_length]
+        
+        Honestly, neither tirvish nor GRF need to make these dataframes and I think it hurts RAM performance a lot
+        
+        However, the better way to make this work while adopting the same approach is to 
+        (1) make a pyfastx index of each sequence file as we go,
+        (2) clean as we produce tirvish and grf results, 
+        (3) keep only an index of clean records in memory
+        (4) produce the dataframe-formatted output for CNN step using the clean records, linked indexed files
+        
+        This gets us all the way to step 6 of this module, which we can look at when we get there.
+        '''
+
+        #Should probably move the file splitting logic that both tirvish and GRF use to this part of the code - seems silly to have both parts check and do if needed.
+
         # Module 4, Step 1: Run TIRvish to find inverted repeats
         current_progress: List[int] = [4, 1]
         if self.__progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
@@ -806,6 +827,8 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
+        '''
+        #Need to push cleaning to run_TIRvish
         # Module 4, Step 2: Process TIRvish results
         current_progress = [4, 2]
         if self.__progress_check(current_progress) and SKIP_TIRVISH not in self.additional_args:
@@ -815,6 +838,7 @@ class TIRLearner:
             self.__save_checkpoint_file()
             if self.flag_debug:
                 self.show_current_memory_usage()
+        '''
 
         # Module 4, Step 3: Run GRF to find inverted repeats
         current_progress = [4, 3]
@@ -826,6 +850,8 @@ class TIRLearner:
             if self.flag_debug:
                 self.show_current_memory_usage()
 
+        '''
+        Pushed cleaning logic to run GRF
         # Module 4, Step 4: Process GRF results
         current_progress = [4, 4]
         if self.__progress_check(current_progress) and SKIP_GRF not in self.additional_args:
@@ -835,7 +861,8 @@ class TIRLearner:
             self.__save_checkpoint_file()
             if self.flag_debug:
                 self.show_current_memory_usage()
-
+        '''
+                
         # Module 4, Step 5: Combine TIRvish and GRF results
         current_progress = [4, 5]
         if self.__progress_check(current_progress):

@@ -15,6 +15,10 @@ SPLIT_SEQ_ID_REGEX_PATTERN = ('^' +
                               r":(\d+):(\d+):(\w+):(\w+)$")
 # SPLIT_SEQ_ID_PATTERN = r"^(\w+)_split_([\w.]+of\d+):(\d+):(\d+):(\w+):(\w+)$"
 
+def _find_digits_sum(string: str) -> int:
+    pattern = r"(\d+)"
+    l = re.findall(pattern, string)
+    return sum([int(i) for i in l])
 
 def processors_allocation(processors: int) -> Tuple[int, int, int]:
     if processors <= 16:
@@ -32,7 +36,6 @@ def retrieve_unsplit_seq_id(match: re.Match, split_seq_len: int, overlap_seq_len
     offset = retrieve_split_sequence_offset(segment_position, split_seq_len, overlap_seq_len)
     return f"{seqid}:{int(start) + offset}:{int(end) + offset}:{TIR_pattern}:{TSD}"
 
-
 def _GRF(genome_file: str, genome_name: str, TIR_length: int, processors: int, GRF_path: str):
     GRF_bin_path = os.path.join(GRF_path, "grf-main")
     GRF_result_dir_name = f"{genome_name}_GRFmite"
@@ -49,6 +52,7 @@ def _GRF_mp(genome_file_path: str, genome_name: str, TIR_length: int, processors
     os.chdir(GRF_working_dir)
     _GRF(genome_file_name, genome_name, TIR_length, processors, GRF_path)
     os.chdir("../")
+
 
 
 def _run_GRF_native(genome_file: str, genome_name: str, TIR_length: int,
@@ -75,7 +79,7 @@ def _run_GRF_py_para(genome_file: str, genome_name: str, TIR_length: int, proces
 
     mp_args_list = [(file_path, genome_name, TIR_length, num_thread_per_process, GRF_path) for
                     file_path in fasta_files_path_list]
-
+    
     print()
     with mp.Pool(num_process) as pool:
         pool.starmap(_GRF_mp, mp_args_list)
@@ -86,22 +90,50 @@ def _run_GRF_py_para(genome_file: str, genome_name: str, TIR_length: int, proces
                                    MP_SPLIT_SEQ_LEN, MP_OVERLAP_SEQ_LEN)
 
 
+'''
+'''
 def _get_single_GRF_result_df_para(file_path: str, flag_debug: bool,
                                    split_seq_len: int, overlap_seq_len: int) -> Optional[pd.DataFrame]:
     try:
-        df_data_dict = [{"id": rec.id, "seq": str(rec.seq), "len": len(rec)}
-                        for rec in SeqIO.parse(os.path.join(file_path, "candidate.fasta"), "fasta")]
-        df = pd.DataFrame(df_data_dict, columns=["id", "seq", "len"]).astype({"len": int})
-        df["id"] = df["id"].str.replace(SPLIT_SEQ_ID_REGEX_PATTERN,
-                                        lambda x: retrieve_unsplit_seq_id(x, split_seq_len, overlap_seq_len),
-                                        regex=True)
+        min_seqlen = 50
+        max_N_pct = 0.2
+        max_ta_pct = 0.7
+        
+        df_data_dict = []
+        for rec in SeqIO.parse(os.path.join(file_path, "candidate.fasta"), "fasta"):
+            caps = str(rec.seq)
+            caps = caps.upper()
+            seqlen = len(caps)
+            if seqlen > min_seqlen:
+                cts = Counter(caps)
+                if (cts['N'] / seqlen) < max_N_pct and ((cts['A']+cts['T']) / seqlen) < max_ta_pct:
+                    seqname = rec.id
+                    
+                    if MP_SPLIT_SEQ_TAG in seqname:
+                        match = re.match(SPLIT_SEQ_ID_REGEX_PATTERN, seqname)
+                        seqname = retrieve_unsplit_seq_id(match, split_seq_len, overlap_seq_len)
+                    
+                    tir_len = _find_digits_sum(seqname.split(":")[-2])
+                    tir = caps[0:tir_len]
+                    cts = Counter(tir)
+                    if (cts['N'] / tir_len) < max_N_pct and ((cts['A']+cts['T']) / tir_len) < max_ta_pct:
+                        tsd = seqname.split(":")[-1]
+                        first_4 = caps[0:4]
+                        if len(tsd) > 6 or tsd == "TAA" or tsd == "TTA" or tsd == "TA" or first_4 == "CACT" or first_4 == "GTGA":
+                            next_record = {"id":seqname, "seq":caps}
+                            #{"id": rec.id, "seq": str(rec.seq), "len": len(rec)}
+                            df_data_dict.append(next_record)
+    
+        df = pd.DataFrame(df_data_dict, columns=["id", "seq"])
+        df["id"] = ">" + df["id"]
+        
     except FileNotFoundError:
         df = None
     if not flag_debug:
         subprocess.Popen(["rm", "-rf", file_path])
     return df
-
-
+    
+    
 def _get_GRF_result_df_para(fasta_files_path_list: List[str], genome_name: str, processors: int, flag_debug: bool,
                             split_seq_len: int, overlap_seq_len: int) -> Optional[pd.DataFrame]:
     GRF_result_dir_name = f"{genome_name}_GRFmite"
@@ -111,45 +143,14 @@ def _get_GRF_result_df_para(fasta_files_path_list: List[str], genome_name: str, 
     mp_args_list = [(file_path, flag_debug, split_seq_len, overlap_seq_len) for file_path in GRF_result_dir_list]
 
     with mp.Pool(processors) as pool:
+       #df_list = pool.starmap(_get_single_GRF_result_df_para_new, mp_args_list)
        df_list = pool.starmap(_get_single_GRF_result_df_para, mp_args_list)
 
     if not df_list:
         return None
+                    
     return pd.concat(df_list).drop_duplicates(ignore_index=True).sort_values("id", ignore_index=True)
 
-
-# def get_GRF_result_df_para(fasta_files_path_list: List[str], genome_name: str,
-#                            flag_debug: bool, split_seq_len: int, overlap_seq_len: int) -> Optional[pd.DataFrame]:
-#     GRF_result_dir_name = f"{genome_name}_GRFmite"
-#     GRF_result_dir_list = [os.path.join(os.path.dirname(file), GRF_result_dir_name) for file in
-#                            fasta_files_path_list]
-#
-#     df_list = []
-#     for f in GRF_result_dir_list:
-#         try:
-#             df_data_dict = [{"id": rec.id, "seq": str(rec.seq), "len": len(rec)}
-#                             for rec in SeqIO.parse(os.path.join(f, "candidate.fasta"), "fasta")]
-#             df_in = pd.DataFrame(df_data_dict, columns=["id", "seq", "len"]).astype({"len": int})
-#
-#             id_pattern = r"^(\w+)_split_([\w.]+of\d+):(\d+):(\d+):(\w+):(\w+)$"
-#
-#             def revise_id(match):
-#                 seqid, segment_position, start, end, TIR_pattern, TSD = match.groups()
-#                 offset = retrieve_split_sequence_offset(segment_position, split_seq_len, overlap_seq_len)
-#                 return f"{seqid}:{int(start) + offset}:{int(end) + offset}:{TIR_pattern}:{TSD}"
-#
-#             df_in["id"] = df_in["id"].str.replace(id_pattern, revise_id, regex=True)
-#
-#             df_list.append(df_in.copy())
-#         except FileNotFoundError:
-#             continue
-#         if not flag_debug:
-#             subprocess.Popen(["rm", "-rf", f])
-#
-#     if len(df_list) == 0:
-#         return None
-#
-#     return pd.concat(df_list).drop_duplicates(ignore_index=True).sort_values("id", ignore_index=True)
 
 
 def _get_GRF_result_df_native(genome_name: str, flag_debug: bool) -> Optional[pd.DataFrame]:

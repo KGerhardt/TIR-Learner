@@ -36,6 +36,8 @@ from sklearn.preprocessing import LabelEncoder                                  
 import torch                                                                    # noqa
 import keras                                                                    # noqa
 
+from collections import Counter
+
 # ======================================================================================================================
 # Constants
 

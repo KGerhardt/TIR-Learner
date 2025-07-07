@@ -35,12 +35,16 @@ def _find_digits_sum(string: str) -> int:
 
 def _TSD_check(x: pd.Series) -> bool:
     TSD = x["TSD"]
-    if ((len(TSD) > 6 or TSD == "TAA" or TSD == "TTA" or TSD == "TA" or x["seq"][0:4] == "CACT") or
-            x["seq"][0:4] == "GTGA"):
+    if ((len(TSD) > 6 or 
+        TSD == "TAA" or 
+        TSD == "TTA" or 
+        TSD == "TA" or 
+        x["seq"][0:4] == "CACT") or
+        x["seq"][0:4] == "GTGA"):
         return True
     return False
 
-
+#This behavior was pushed to the run_GRF script and this is no longer used at all.
 def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df_in = TIRLearner_instance.working_df_dict["GRF"]
 
@@ -91,7 +95,7 @@ def process_GRF_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df["id"] = ">" + df["id"]
     return df
 
-
+#This behavior was pushed to the run_TIRvish and get_fasta_sequence scripts and this is no longer used at all.
 def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df_in = TIRLearner_instance["TIRvish"]
 
@@ -136,6 +140,8 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
     df = df.dropna(ignore_index=True).copy()
     df["check_N_TIR2_check"] = df.swifter.progress_bar(TIRLearner_instance.flag_verbose).apply(
         lambda x: np.nan if _check_N(x["TIR2"]) else False, axis=1)
+    
+    #Ultimately drop everything else.
     df = df.dropna(ignore_index=True).loc[:, ["id", "seq"]].copy()
 
     if df.shape[0] == 0:
