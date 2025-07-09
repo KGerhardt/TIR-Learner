@@ -38,6 +38,8 @@ import keras                                                                    
 
 from collections import Counter
 
+#import pyfastx
+
 # ======================================================================================================================
 # Constants
 
@@ -59,7 +61,7 @@ SANDBOX_DIR_NAME: str = "[DONT_ALTER]TIR-Learner_sandbox"
 SPLIT_FASTA_TAG: str = "SplitFasta"
 RESULT_OUTPUT_DIR_NAME: str = "TIR-Learner-Result"
 CHECKPOINT_DIR_NAME_PREFIX: str = "TIR-Learner_v3_checkpoint_"
-PROCESSED_DE_NOVO_RESULT_FILE_NAME_FORMAT_STR: str = "{0}" + SPLITER + "processed_de_novo_result.fa"
+PROCESSED_DE_NOVO_RESULT_FILE_NAME_FORMAT_STR: str = "{genome}" + SPLITER + "processed_de_novo_result{step}.fa"
 PRINT_DECIMAL_SIGNIFICANT_FIGURES = 4
 
 CNN_MODEL_DIR_REL_PATH: str = "./cnn0912/cnn0912.keras"

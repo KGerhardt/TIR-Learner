@@ -149,7 +149,7 @@ def process_TIRvish_result(TIRLearner_instance) -> Optional[pd.DataFrame]:
         return None
     return df
 
-
+#No longer used
 def combine_de_novo_result(TIRLearner_instance):
     try:
         df = pd.concat((TIRLearner_instance.get("TIRvish"), TIRLearner_instance.get("GRF")), ignore_index=True)
