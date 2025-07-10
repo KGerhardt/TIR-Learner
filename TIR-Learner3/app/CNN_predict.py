@@ -73,6 +73,7 @@ def _post_processing(df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataF
 	df["send"] = df.swifter.progress_bar(flag_verbose).apply(lambda x: int(x["id"].split(":")[2]), axis=1)
 	df = df.loc[:, ["TIR_type", "id", "seqid", "sstart", "send"]]
 	df = df.sort_values(["TIR_type", "seqid", "sstart", "send"], ignore_index=True)
+		
 	return df
 
 def run_by_chunks(chunk):
@@ -80,6 +81,7 @@ def run_by_chunks(chunk):
 
 	#print("  Step 1/7: Getting sequence fragment for prediction")
 	df["seq_frag"] = df.swifter.progress_bar(False).apply(_get_sequence_fragment, axis=1)
+	#just process in-flow rather than loading the data again later
 	df = df.drop(columns="seq")
 
 	df = _feature_encoding(df, False)
@@ -90,7 +92,25 @@ def run_by_chunks(chunk):
 	os.remove(chunk)
 	
 	return df
+
 	
+#partially from get_fasta_sequence
+def _get_start_end(fasta_len_dict : dict, df_in: pd.DataFrame, flag_verbose: bool = True) -> pd.DataFrame:
+	df = df_in.copy()
+	df["start"] = df.swifter.progress_bar(False).apply(lambda x: min(x["sstart"], x["send"]), axis=1)
+	df["end"] = df.swifter.progress_bar(False).apply(lambda x: max(x["sstart"], x["send"]), axis=1)
+	df["sstart"] = df["start"]
+	df["send"] = df["end"]
+
+	df["start"] = df.swifter.progress_bar(False).apply(lambda x: max(x["sstart"] - TE_TOLERANCE, 1), axis=1)
+	# start = start - length if start > length else 1
+	df["end"] = df.swifter.progress_bar(False).apply(lambda x: x["send"] + TE_TOLERANCE, axis=1)
+
+	# Ensure "end" not exceeding seq's length
+	df["end"] = df.swifter.progress_bar(False).apply(lambda x: min(x["end"], fasta_len_dict[x["seqid"]]), axis=1)
+
+	#df = df.drop_duplicates(["start", "end", "seqid", "TIR_type"], keep="first", ignore_index=True)
+	return df
 
 def execute(TIRLearner_instance) -> pd.DataFrame:
 	#num_procs = TIRLearner_instance.processors
@@ -99,6 +119,9 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 	#df = TIRLearner_instance["base"].copy()
 
 	num_chunks = min([TIRLearner_instance.processors, len(TIRLearner_instance["base"])])
+	#gl = TIRLearner_instance.genome_lengths
+	
+	#dflist = []
 	
 	ct = 0
 	print(f"{num_chunks} partitions to process with CNN")
@@ -107,6 +130,11 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 		for result in pool.imap_unordered(run_by_chunks, TIRLearner_instance["base"]):
 			ct += 1
 			if result is not None:
+				result = _get_start_end(TIRLearner_instance.genome_lengths, result)
+				#for col in result.columns:
+				#	print(f"Column: {col}, Data Type: {result[col].dtype}")
+				
+				#dflist.append(result)
 				result.to_csv(out, sep = '\t', header = False, index = False)
 			print(f'{ct} of {num_chunks} complete!')
 		

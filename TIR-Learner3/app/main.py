@@ -268,11 +268,20 @@ class TIRLearner:
 
 		self.processed_de_novo_result_file_name_cnn: str = PROCESSED_DE_NOVO_RESULT_FILE_NAME_FORMAT_STR.format(
 			genome = self.genome_name, step = '_cnn')
+			
+		self.processed_de_novo_result_file_name_cnn_with_seqs: str = PROCESSED_DE_NOVO_RESULT_FILE_NAME_FORMAT_STR.format(
+			genome = self.genome_name, step = '_cnn_seqs')
+		
+		self.processed_de_novo_result_file_name_tir_tsd: str = PROCESSED_DE_NOVO_RESULT_FILE_NAME_FORMAT_STR.format(
+			genome = self.genome_name, step = '_check_tsd')
 
 		if CHECKPOINT_OFF not in self.additional_args:
 			self.checkpoint_dir_output_path: str = os.path.join(
 				self.output_dir_path, CHECKPOINT_DIR_NAME_PREFIX + get_timestamp_now_utc_iso8601(time_sep='-'))
 			os.makedirs(self.checkpoint_dir_output_path)
+
+		self.genome_lengths = None
+		self.genome_lengths_file: str = "genome_lengths.txt"
 
 		self.genome_file_stat: Dict[str, Union[float, int]] = {"file_size": -0.1, "num": -1,
 															   "short_seq_num": 0, "short_seq_perc": -0.1,
@@ -329,6 +338,7 @@ class TIRLearner:
 			raw_result_df_list: List[pd.DataFrame] = [self["m4"]]
 
 		post_processing.execute(self, raw_result_df_list)
+		
 		if CHECKPOINT_OFF not in self.additional_args and not self.flag_debug:
 			shutil.rmtree(self.checkpoint_dir_output_path)
 
@@ -347,15 +357,22 @@ class TIRLearner:
 
 		try:
 			self.genome_file_stat["num"] = len(list(SeqIO.index(self.genome_file_path, "fasta")))
+			#pyfastx.Fasta(self.genome_file_path, build_index = True)
 		except Exception:
 			raise SystemExit("[ERROR] Duplicate sequence name occurs in the genome file. "
 							 "Revise the genome file and try again.")
 
+		self.genome_lengths = {}
 		records: List[SeqRecord] = []
 		for record in SeqIO.parse(self.genome_file_path, "fasta"):
 			record.seq = record.seq.upper()
 			sequence_str: str = str(record.seq)
 			seq_len: int = len(sequence_str)
+			
+			#IDK, keep both versions, whatever
+			self.genome_lengths[f'>{record.id}'] = seq_len
+			self.genome_lengths[f'{record.id}'] = seq_len
+			
 			drop_seq_len: int = self.TIR_length + 500
 			if seq_len < drop_seq_len:
 				continue
@@ -378,9 +395,21 @@ class TIRLearner:
 			records.append(record)
 		checked_genome_file: str = f"{self.genome_name}{SPLITER}checked.fa"
 		SeqIO.write(records, checked_genome_file, "fasta")
+		
+		pyfastx.Fasta(checked_genome_file, build_index = True)
+		
 		self.genome_file_stat["short_seq_perc"] = (self.genome_file_stat["short_seq_num"] /
 												   self.genome_file_stat["num"])
 		self.genome_file_stat["avg_len"] = self.genome_file_stat["total_len"] // self.genome_file_stat["num"]
+
+		with open(os.path.join(self.working_dir_path, self.genome_lengths_file), "w") as out:
+			for seqid in self.genome_lengths:
+				print(f'{seqid}\t{self.genome_lengths[seqid]}', file = out)
+				
+		if CHECKPOINT_OFF not in self.additional_args:
+			glin = os.path.join(self.working_dir_path, self.genome_lengths_file)
+			glout = os.path.join(self.checkpoint_dir_output_path, self.genome_lengths_file)
+			shutil.copy(glin, glout)
 
 		end_time: float = time.perf_counter()
 		print(f"Genome file scan finished! Time elapsed: {humanize_time(end_time - start_time)}.")
@@ -819,8 +848,7 @@ class TIRLearner:
 			#print("Indexing TIRvish")
 			#pyfastx.Fasta(self["TIRvish"], build_index = True)
 			
-			if not CHECKPOINT_OFF in self.additional_args:
-				print(self["TIRvish"])
+			if CHECKPOINT_OFF not in self.additional_args:
 				checkpt_name = os.path.basename(self["TIRvish"])
 				checkpt_name = os.path.join(self.checkpoint_dir_output_path, checkpt_name)
 				shutil.copy(f'{self["TIRvish"]}', f'{checkpt_name}')
@@ -828,7 +856,6 @@ class TIRLearner:
 				
 			self.current_progress = current_progress
 			#self.__save_checkpoint_file()
-
 
 		# Module 4, Step 3: Run GRF to find inverted repeats
 		current_progress = [4, 3]
@@ -840,7 +867,7 @@ class TIRLearner:
 			#print("Indexing GRF")
 			#pyfastx.Fasta(self["GRF"], build_index = True)
 			
-			if not CHECKPOINT_OFF in self.additional_args:
+			if CHECKPOINT_OFF not in self.additional_args:
 				checkpt_name = os.path.basename(self["GRF"])
 				checkpt_name = os.path.join(self.checkpoint_dir_output_path, checkpt_name)
 				shutil.copy(self["GRF"], checkpt_name)
@@ -866,12 +893,12 @@ class TIRLearner:
 			#self.__save_processed_de_novo_result_checkpoint_file()
 		'''
 		
-		# Module 4, Step 6: Prepare data
+		# Module 4, Step 6: Chunk data for CNN
 		current_progress = [4, 6]
 		if self.__progress_check(current_progress):
 			print("Module 4, Step 6: Prepare data")
 			self["base"] = prepare_data.execute(self)
-			self.current_progress = current_progress
+			self.current_progress = current_progress			
 			#self.__save_checkpoint_file()
 			#if self.flag_debug:
 			#	self.show_current_memory_usage()
@@ -881,11 +908,11 @@ class TIRLearner:
 		current_progress = [4, 7]
 		if self.__progress_check(current_progress):
 			self.processed_de_novo_result_file_name_cnn = os.path.abspath(self.processed_de_novo_result_file_name_cnn)
-		
+			
 			self["base"] = CNN_predict.execute(self)
 			self.current_progress = current_progress
 			
-			if not CHECKPOINT_OFF in self.additional_args:
+			if CHECKPOINT_OFF not in self.additional_args:
 				checkpt_name = os.path.basename(self.processed_de_novo_result_file_name_cnn)
 				checkpt_name = os.path.join(self.checkpoint_dir_output_path, checkpt_name)
 				shutil.copy(self.processed_de_novo_result_file_name_cnn, checkpt_name)
@@ -893,18 +920,23 @@ class TIRLearner:
 			#self.__save_checkpoint_file()
 			#if self.flag_debug:
 			#	self.show_current_memory_usage()
-
-		quit()
-
+		
+		#This may still require more work
 		# Module 4, Step 8: Get FASTA sequences from CNN prediction
 		current_progress = [4, 8]
 		if self.__progress_check(current_progress):
 			print("Module 4, Step 8: Get FASTA sequences from CNN prediction")
 			self["base"] = get_fasta_sequence.execute(self)
 			self.current_progress = current_progress
-			self.__save_checkpoint_file()
-			if self.flag_debug:
-				self.show_current_memory_usage()	
+			
+			if CHECKPOINT_OFF not in self.additional_args:
+				checkpt_name = os.path.basename(self["base"])
+				checkpt_name = os.path.join(self.checkpoint_dir_output_path, checkpt_name)
+				shutil.copy(self["base"], checkpt_name)
+			
+			#self.__save_checkpoint_file()
+			#if self.flag_debug:
+			#	self.show_current_memory_usage()
 
 		# Module 4, Step 9: Check TIR and TSD
 		current_progress = [4, 9]
@@ -912,9 +944,14 @@ class TIRLearner:
 			print("Module 4, Step 9: Check TIR and TSD")
 			self["base"] = check_TIR_TSD.execute(self, module)
 			self.current_progress = current_progress
-			self.__save_checkpoint_file()
-			if self.flag_debug:
-				self.show_current_memory_usage()
+			
+			if CHECKPOINT_OFF not in self.additional_args:
+				checkpt_name = os.path.basename(self["base"])
+				checkpt_name = os.path.join(self.checkpoint_dir_output_path, checkpt_name)
+				shutil.copy(self["base"], checkpt_name)
+			#self.__save_checkpoint_file()
+			#if self.flag_debug:
+			#	self.show_current_memory_usage()
 
 		# Module 4, Step 10: Save module result
 		current_progress = [4, 10]
@@ -922,8 +959,8 @@ class TIRLearner:
 			self["m4"] = self["base"]
 			del self["base"]
 			self.current_progress = current_progress
-			self.__save_checkpoint_file()
-			if self.flag_debug:
-				self.show_current_memory_usage()
+			#self.__save_checkpoint_file()
+			#if self.flag_debug:
+			#	self.show_current_memory_usage()
 
 		terminal_print("Module 4 Finished")

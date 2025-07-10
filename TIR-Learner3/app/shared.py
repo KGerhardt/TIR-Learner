@@ -38,7 +38,7 @@ import keras                                                                    
 
 from collections import Counter
 
-#import pyfastx
+import pyfastx
 
 # ======================================================================================================================
 # Constants

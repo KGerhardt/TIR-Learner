@@ -215,6 +215,7 @@ def _run_TIRvish_py_para(genome_file: str, genome_name: str, TIR_length: int,
 	print("  Step 3/3: Getting TIRvish result")
 	mp_args_list = [(file_path, flag_debug, MP_SPLIT_SEQ_LEN, MP_OVERLAP_SEQ_LEN) for file_path in
 					TIRvish_result_gff3_file_path_list]
+					
 	with mp.Pool(processors) as pool:
 		TIRvish_result_df_list = pool.starmap(_get_TIRvish_result_df, mp_args_list)
 
@@ -240,6 +241,7 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 	elif para_mode == "gnup":
 		raise NotImplementedError()
 	else:
+		#This code is still not low-mem'd, but that should be OK
 		df = _run_TIRvish_py_para(genome_file, genome_name, TIR_length, processors, flag_debug, gt_path,
 								  fasta_files_path_list)
 								  
