@@ -4,7 +4,7 @@
 from shared import *
 
 def execute(TIRLearner_instance, df_homo: pd.DataFrame = None) -> pd.DataFrame:
-	split_size = 500
+	split_size = 25000
 	chunks_to_process = []
 	
 	
@@ -19,7 +19,7 @@ def execute(TIRLearner_instance, df_homo: pd.DataFrame = None) -> pd.DataFrame:
 			for line in fh:
 				next_records.append(line)
 				ct += 1
-				if ct > 499:
+				if ct > split_size:
 					oname = f'{TIRLearner_instance["TIRvish"]}_chunk_{split}.tsv'
 					with open(oname, "w") as out:
 						out.write(''.join(next_records))

@@ -124,7 +124,7 @@ def execute(TIRLearner_instance) -> pd.DataFrame:
 	#dflist = []
 	
 	ct = 0
-	print(f"{num_chunks} partitions to process with CNN")
+	print(f"{len(TIRLearner_instance["base"])} partitions to process with CNN")
 	pool = mp.Pool(num_chunks)
 	with open(TIRLearner_instance.processed_de_novo_result_file_name_cnn, "w", newline='') as out:
 		for result in pool.imap_unordered(run_by_chunks, TIRLearner_instance["base"]):
