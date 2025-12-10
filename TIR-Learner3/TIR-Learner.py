@@ -37,6 +37,16 @@ def options():
 						Default location is {os.path.join(os.getcwd(), 'TIR_Learner_working_directory')}.",
 						type=str, default='TIR_Learner_working_directory')
 						
+	parser.add_argument('--skip_tirvish', action = 'store_true', 
+						help = 'Skip running TIRvish or omit existing TIRvish results from post-processing.')
+	parser.add_argument('--skip_grf', action = 'store_true', 
+						help = 'Skip running GRF or omit existing GRF results from post-processing.')
+	
+	parser.add_argument('--existing_tirvish', default = None, 
+						help = 'Supply an existing TIRvish output JSON from a previous TIR-Learner run.')
+	parser.add_argument('--existing_grf', default = None, 
+						help = 'Supply an existing GRF output JSON from a previous TIR-Learner run.')
+						
 	# see prog_const for what additional args are acceptable
 
 	parsed_args = parser.parse_args()
@@ -73,7 +83,12 @@ def main():
 		from app.main import newTL
 		print('Program resources loaded.')
 		print('')
-
+	
+		skip_t = parsed_args.skip_tirvish
+		skip_g = parsed_args.skip_grf
+		exist_t = parsed_args.existing_tirvish
+		exist_g = parsed_args.existing_grf
+	
 		#genome_file_path: str, TIR_length: int = 5_000,
 		#processors: int = 20, species = None, wd = 'TIR_Learner_working_directory',
 		#extension_size = 200, chunk_size = 5_000_000, olap = 7_500
@@ -83,7 +98,11 @@ def main():
 								TIR_length = tir_max_length,
 								processors = threads,
 								species = species,
-								wd = directory
+								wd = directory,
+								skip_tirvish = skip_t,
+								skip_grf = skip_g, 
+								existing_tirvish = exist_t,
+								existing_grf = exist_g
 								)
 		TIRLearner_instance.run()
 
