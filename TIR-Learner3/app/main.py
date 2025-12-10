@@ -19,14 +19,15 @@ from .grf_new import GRF_manager
 from .cnn_new import CNN_manager
 from .blast_new import blaster
 
-from .output_compressor import compress
+from .output_compressor import compress, decompress
 
 import shutil
 
 class newTL:
 	def __init__(self, genome_file_path: str, TIR_length: int = 5_000,
 				 processors: int = 1, species = None, wd = 'TIR_Learner_working_directory',
-				 extension_size = 20, chunk_size = 5_000_000, olap = 7_500):
+				 extension_size = 20, chunk_size = 5_000_000, olap = 7_500, skip_tirvish = False, 
+				 skip_grf = False, existing_tirvish = None, existing_grf = None):
 		
 		self.threads = processors
 		
@@ -62,7 +63,13 @@ class newTL:
 									verbose = True,
 									overwrite = False,
 									do_bedtools_prep = True)
-											
+		
+		self.existing_grf = existing_grf
+		self.existing_tirvish = existing_tirvish
+		
+		self.skip_tirvish = skip_tirvish
+		self.skip_grf = skip_grf
+									
 		self.split_genome_files = None
 		
 		self.seqlens = None
@@ -80,7 +87,6 @@ class newTL:
 			
 	def dir_prep_pre(self):
 		self.prepare_directory(self.split_dir)
-		#self.prepare_directory(self.bed_dir)
 		self.prepare_directory(self.check_dir)
 		self.prepare_directory(self.active_dir)
 		
@@ -91,13 +97,30 @@ class newTL:
 		
 	#Runs GRF, processes results into a JSON file
 	def GRF(self):
-		self.grf_file = GRF_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
-		compress(self.grf_file, threads = self.threads)
-	
+		if self.existing_grf is None:
+			self.grf_file = GRF_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
+			compress(self.grf_file, threads = self.threads)
+		else:
+			if os.path.exists(self.existing_grf):
+				recheck = os.path.join(self.check_dir, os.path.basename(self.existing_grf))
+				shutil.copy(self.existing_grf, recheck)
+				self.grf_file = decompress(recheck)
+			else:
+				print(f'Supplied GRF JSON {self.existing_grf} could not be found.')
+				
+					
 	#Runs TIRvish, processes results into a json file
 	def TIRvish(self):
-		self.tirvish_file = TIRvish_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
-		compress(self.tirvish_file, threads = self.threads)
+		if self.existing_tirvish is None:
+			self.tirvish_file = TIRvish_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
+			compress(self.tirvish_file, threads = self.threads)
+		else:
+			if os.path.exists(self.existing_tirvish):
+				recheck = os.path.join(self.check_dir, os.path.basename(self.existing_tirvish))
+				shutil.copy(self.existing_tirvish, recheck)
+				self.tirvish_file = decompress(recheck)
+			else:
+				print(f'Supplied tirvish JSON {self.existing_tirvish} could not be found.')
 	
 	#This is 95% implemented
 	def blast(self):
@@ -186,9 +209,10 @@ class newTL:
 		self.scan_and_split_genome()
 
 		#These will be run irrespective of module 1-3 or 4
-		self.TIRvish()
-		self.GRF()
-
+		if not self.skip_tirvish:
+			self.TIRvish()
+		if not self.skip_grf:
+			self.GRF()
 		if self.species is not None:
 			self.blast()
 
