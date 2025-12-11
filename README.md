@@ -1,6 +1,6 @@
 # TIR-Learner v4
 
-TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposable elements annotation in eukaryotic genomes. Version 4 represents complete rewrite of v3, greatly improving runtimes and vastly reducing the amount of RAM required to process larger genomes.
+TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposable elements annotation in eukaryotic genomes. Version 4 is a complete rewrite of v3, greatly reducing runtimes and vastly reducing the amount of RAM required to process larger genomes.
 
 ## Table of Contents
 
@@ -31,19 +31,20 @@ TIR-Learner combines multiple approaches to identify and classify TIR transposon
 ### Improved Efficiency
 
 - A more efficient divide-and-conquer approach to genome chunking, sequence retrieval vastly accelerates program runtimes
-- JSON encoding of partial results reduces file output volume, size, and complexity
-- Substantially reduced I/O, reduced redundancy means that your data spends more time being analyzed, less time being managed
+- Massive reduction in number of files produced at any given time
+- Substantially reduced I/O
 - Filtering operations moved to their earliest possible locations in the pipeline; invalid sequences get removed as soon as possible and before downstream processing
+- More efficient algorithms for data cleaning implemented in many places
   
 ### Enhanced Compatibility
 
-- Fewer, smaller, and less complex dependencies for better maintainability (removed Pandas, SciKit Learn, Swifter, BioPy, ...?)
+- Fewer, less complex dependencies for better maintainability (removed Pandas, SciKit Learn, Swifter, BioPy, regex)
 
 ### New Features
 
-- Enhanced checkpoint system
-- New 
-- 
+- Enhanced checkpoint system records compact partial results
+- Checkpoint files are kept post-run, can be reused by TIR-Learner in reruns (unlikely but nice to have)
+- Checkpoint files improve data transparency
 
 ## Installation
 
@@ -58,27 +59,8 @@ Note: In all installation commands, `-c conda-forge` MUST be specified before `-
 You can create a new environment with any name (we use `TIRLearner_env` as an example) and install TIR-Learner in it using the following one-liner command:
 
 ```shell
-mamba create -n TIRLearner_env -c conda-forge -c bioconda tir-learner
+mamba create -n tirlearner -c bioconda -c conda-forge -c nanoporetech numpy pigz blast genericrepeatfinder genometools-genometools pywfa pyfastx pytorch keras
 ```
-
-#### Install in an existing environment
-
-```shell
-mamba install -c conda-forge -c bioconda tir-learner
-```
-
-#### Enforce PyTorch Build (CUDA or CPU-only)
-
-Sometimes users may want to force PyTorch to use CPU only (or conversely force using CUDA). For example, while HPC nodes may have GPUs that trigger conda to automatically install CUDA-enabled PyTorch builds, users without GPU access permissions will encounter runtime errors while using TIR-Learner. 
-
-In such cases, you can specify a CPU-only PyTorch build by adding `"pytorch=*=*cpu*"` in the installation commands. For instance:
-
-```shell
-mamba create -n TIRLearner_env -c conda-forge -c bioconda tir-learner "pytorch=*=*cpu*"
-```
-
-Similarly, you can add `"pytorch=*=*cuda*"` in the installation commands to enforce CUDA usage.
-
 
 ### Manual Installation
 
@@ -90,27 +72,24 @@ Clone the repository and install all the dependencies. `TIR-Learner.py` is the e
 - BLAST
 - GenomeTools (gt)
 - GRF (Generic Repeat Finder)
+- pigz
 - Required Python packages:
-  - biopython
   - keras >=3.3.3
-  - pandas
   - pytorch
-  - regex
-  - scikit-learn >=1.3
-  - swifter
+  - numpy
+  - pyfastx
+  - pywfa
 
 ## Usage
 
 ```shell
-TIR-Learner [-h] [-v] -f GENOME_FILE -s SPECIES [-n GENOME_NAME] [-l LENGTH] [-p PROCESSOR] [-w WORKING_DIR] [-o OUTPUT_DIR] [-c [CHECKPOINT_DIR]] [--verbose] [-d] [--grf_path GRF_PATH] [--gt_path GT_PATH] [-a ADDITIONAL_ARGS]
+TIR-Learner [-h] -f GENOME_FILE -s SPECIES [-l LENGTH] [-p PROCESSOR] [-o OUTPUT_DIR] 
 ```
 
 ### Program Information
 
 - `-h, --help`
   - Show help message and exit
-- `-v, --version`
-  - Show version information and exit
 
 ### Required Arguments
 
@@ -123,7 +102,6 @@ TIR-Learner [-h] [-v] -f GENOME_FILE -s SPECIES [-n GENOME_NAME] [-l LENGTH] [-p
   - Options:
     - `rice`: Use rice-specific TIR reference library
     - `maize`: Use maize-specific TIR reference library
-    - `others`: Use general analysis pipeline without species-specific references
   - Affects which processing path (Part A or B) will be used
 
 ### Optional Arguments
@@ -141,97 +119,12 @@ TIR-Learner [-h] [-v] -f GENOME_FILE -s SPECIES [-n GENOME_NAME] [-l LENGTH] [-p
 - `-p, -t, --processor` (default: all available CPU cores)
   - Number of processors to use for parallel operations
 
-
-<!-- #### Execution Mode
-
-- `-m, --mode` (default: "pyboost")
-  - Parallel execution mode for the program
-  - Options:
-    - `pyboost`: Maximum resource utilization, fastest execution
-    - `pystrict`: Controlled resource usage, better for shared systems
-    - `gnup`: GNU Parallel implementation (experimental)
-  - Affects how computational resources are allocated -->
-
 #### Directory Configuration
-
-- `-w, --working_dir` (default: temporary directory in `/tmp`)
-  - Directory for storing temporary files
-  - Will be automatically cleaned unless in debug mode
-  - Requires sufficient disk space for temporary files
-
 - `-o, --output_dir` (default: genome file directory)
   - Directory for final output files
   - Will be created if it doesn't exist
   - Must have write permissions
-
-- `-c, --checkpoint_dir`
-  - Directory for checkpoint files **to load**
-  - Note: Checkpoint files will always be saved in the **output directory** by default, so this option is only used to load checkpoints from a different directory
-  - Options:
-    - Specify with path (e.g. `-c /path/to/checkpoint`): Use given directory for checkpoints
-    - Specify without path (e.g. `-c`): Automatically search in genome file and output directories
-    - Do not specify: No checkpoint loading
-
-#### Debug and Verbose Options
-
-- `--verbose`
-  - Enable detailed progress output
-  - Shows user-friendly progress bars
-
-- `-d, --debug`
-  - Enable debug mode
-  - Keeps all temporary files
-  - Stores additional checkpoint information
-
-#### Path Configuration
-
-- `--grf_path`
-  - Path to GRF (Generic Repeat Finder)
-  - Required if GRF is not in system PATH
-  - Must point to directory containing grf-main
-
-- `--gt_path`
-  - Path to genometools
-  - Required if genometools is not in system PATH
-  - Must point to directory containing gt
-
-#### Additional Arguments
-
-- `-a, --additional_args`
-  - Additional arguments to pass to the program
-  - Pass additional options individually using -a for each option  
-    Examples:
-    - Single option: `-a CHECKPOINT_OFF`
-    - Multiple options: `-a CHECKPOINT_OFF -a SKIP_TIRVISH`
-
-Available options:
-
-- `CHECKPOINT_OFF`
-  - Completely disables checkpoint system
-  - No checkpoints will be saved or loaded
-  - Useful for one-off runs or when disk space is limited
-
-- `NO_PARALLEL`
-  - Disables multi-processing
-  - Forces serial execution of computation-intensive steps
-  - Useful for debugging or on systems with limited resources
-
-- `SKIP_TIRVISH`
-  - Skips TIRvish analysis step
-  - Reduces runtime but may miss some TIRs
-  - Cannot be used together with SKIP_GRF
-
-- `SKIP_GRF`
-  - Skips GRF analysis step
-  - Reduces runtime but may miss some TIRs
-  - Cannot be used together with SKIP_TIRVISH
-
-### Example
-
-```bash
-TIR-Learner -f ./test/genome.fa -s others -p 2 -l 5000 -c ./ -w ./test/ -d --verbose
-```
-
+    
 ## Program Workflow
 
 <div style="text-align:center; width: 100%">
