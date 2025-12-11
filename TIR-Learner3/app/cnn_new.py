@@ -217,7 +217,8 @@ class CNN_manager:
 		o3 = open(final_fa_filt, 'w')
 		o4 = open(final_g3_filt, 'w')
 		
-		loader = json_loader()
+		loader = json_loader(working_dir = wd)
+		
 		if self.tirvish is not None:
 			post_cnn_file = os.path.join(wd, 'checkpoints', 'post_CNN_TIRVish_json.txt')
 			if not os.path.exists(post_cnn_file):
@@ -264,7 +265,6 @@ class CNN_manager:
 				print('TIRVish CNN search already complete.')
 				
 			final_tirvish = post_cnn_file
-
 
 		if self.grf is not None:
 			loader.load_json_for_cnn(self.grf)

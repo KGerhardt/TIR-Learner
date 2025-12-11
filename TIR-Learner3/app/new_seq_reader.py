@@ -136,11 +136,15 @@ class json_structure:
 #Might need to have an additional version that decomposes TIRvish + GRF records into their parts for CNN work; this is OK I think
 
 class json_loader:
-	def __init__(self):
+	def __init__(self, working_dir = None):
 		self.json_data = None
 		self.workloads = None
 		self.sequence_names = None
-					
+		
+		self.work_dir = working_dir
+		#Very unlikely to see this pattern unless it's made by genomeSplitter
+		self.path_regex = re.compile(r'.+(split_genome.+_chunk_.+_offset_.+\.fasta)')
+		
 	def load_json(self, json_file, get_names = True):
 		with open(json_file) as inf:
 			self.json_data = json.load(inf)
@@ -153,8 +157,18 @@ class json_loader:
 			self.sequence_names = None
 			
 		for source_file in self.json_data:
+			new_source = source_file
+			if self.work_dir is not None:
+				if self.work_dir not in source_file:
+					base = re.match(self.path_regex, source_file)
+					if base:
+						base = base.groups()[0]
+						new_source = os.path.join(self.work_dir, base)
+						#print(f'From existing GRF or TIRvish JSON, source updated from {source_file} to {new_source}')
+					else:
+						print(f'{source_file} not found, this will provbably fail.')
+			
 			this_workload = {}
-			#this_names = {}
 			for seqid in self.json_data[source_file]:
 				if get_names:
 					this_workload[seqid] = {'starts':[],'ends':[],'names':[]}
@@ -174,7 +188,7 @@ class json_loader:
 						name = f'{seqid}:start={s}:stop={e}:tsd1_sz={tsd1}:tsd2_sz={tsd2}:tir1_sz={tir1}:tir2_sz={tir2}'
 						this_workload[seqid]['names'].append(name)
 				
-			self.workloads.append((source_file, this_workload,))
+			self.workloads.append((new_source, this_workload,))
 	
 	def load_json_for_cnn(self, json_file):
 		with open(json_file) as inf:
@@ -182,7 +196,19 @@ class json_loader:
 			
 		self.workloads = []
 		for source_file in self.json_data:
-			self.workloads.append((source_file, self.json_data[source_file],))
+			new_source = source_file
+			if self.work_dir is not None:
+				if self.work_dir not in source_file:
+					base = re.match(self.path_regex, source_file)
+					if base:
+						base = base.groups()[0]
+						#Update to new path
+						new_source = os.path.join(self.work_dir, base)
+						#print(f'From existing GRF or TIRvish JSON, source updated from {source_file} to {new_source}')
+					else:
+						print(f'{source_file} not found, this will provbably fail.')
+						
+			self.workloads.append((new_source, self.json_data[source_file],))
 	
 #class for converting JSON records to bed files, calling bedtools, working with those files, etc.
 class bed_worker:

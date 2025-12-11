@@ -243,7 +243,6 @@ class genomeSplitter:
 		self.overall_split_plan = []
 		
 		for group in self.short_plan:
-			#next_group = ('short', group, self.short_plan[group], self.path, self.outdir)
 			next_group = ('short', group, self.short_plan[group], self.path, self.outdir, self.do_output_index,)
 			self.overall_split_plan.append(next_group)
 		
@@ -298,13 +297,9 @@ class genomeSplitter:
 		#Because of how pyfastx works, it will be quicker and smarter to load each seqid in one writer process and let it go to work
 		for seqid in self.long_plan:
 			next_group = ('long', seqid, self.long_plan[seqid], self.path, self.outdir, self.do_output_index,)
-			#for interval in self.long_plan[seqid]:
-			#	#next_group = ('long', seqid, interval, self.path, self.outdir)
-			#	next_group = ('long', seqid, interval, self.path, self.outdir, self.do_output_index,)
 			self.overall_split_plan.append(next_group)
 		
 		for group in self.short_plan:
-			#next_group = ('short', group, self.short_plan[group], self.path, self.outdir)
 			next_group = ('short', group, self.short_plan[group], self.path, self.outdir, self.do_output_index,)
 			self.overall_split_plan.append(next_group)
 		

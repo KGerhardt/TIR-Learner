@@ -418,9 +418,7 @@ class blaster:
 		self.library_blast_dbs = []
 	
 		self.get_species_ref()
-		
-		#args = [(f, self.wd,) for f in self.species_libraries]
-		
+				
 		ok_threads = min([self.threads, len(self.species_libraries)])
 		with multiprocessing.Pool(ok_threads) as pool:
 			for r in pool.imap_unordered(make_one_db, self.species_libraries):
@@ -431,7 +429,7 @@ class blaster:
 		
 	def blast_from_json(self, json_file):
 		print(f'BLASTing {json_file}')
-		json_manager = json_loader()
+		json_manager = json_loader(working_dir = self.wd)
 		
 		json_manager.load_json(json_file, get_names = True)
 		
