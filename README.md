@@ -1,13 +1,6 @@
-# TIR-Learner v3
+# TIR-Learner v4
 
-[![current release](https://img.shields.io/github/release/lutianyu2001/TIR-Learner.svg)](https://github.com/lutianyu2001/TIR-Learner/releases)
-[![license](https://img.shields.io/github/license/lutianyu2001/TIR-Learner.svg)](https://github.com/lutianyu2001/TIR-Learner/blob/master/LICENSE)
-[![run tests](https://github.com/lutianyu2001/TIR-Learner/actions/workflows/test.yml/badge.svg)](https://github.com/lutianyu2001/TIR-Learner/actions/workflows/test.yml)
-[![bioconda platform](https://anaconda.org/bioconda/tir-learner/badges/platforms.svg)](https://anaconda.org/bioconda/tir-learner)
-[![bioconda version](https://anaconda.org/bioconda/tir-learner/badges/version.svg)](https://anaconda.org/bioconda/tir-learner)
-[![bioconda downloads](https://anaconda.org/bioconda/tir-learner/badges/downloads.svg)](https://anaconda.org/bioconda/tir-learner)
-
-TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposable elements annotation in eukaryotic genomes. Version 3 represents a complete redesign and rewrite, focusing on enhancing efficiency, improving compatibility, and ensuring code quality.
+TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposable elements annotation in eukaryotic genomes. Version 4 represents complete rewrite of v3, greatly improving runtimes and vastly reducing the amount of RAM required to process larger genomes.
 
 ## Table of Contents
 
@@ -33,27 +26,24 @@ TIR-Learner combines multiple approaches to identify and classify TIR transposon
 - De novo structural identification
 - Machine learning classification into TIR superfamilies
 
-## New in Version 3
+## New in Version 4
 
 ### Improved Efficiency
 
-- Reduced I/O operations through in-memory data processing using Pandas DataFrames
-- Multiprocessing support for both TIRvish and GRF tools
-- Optimized sequence processing algorithms
+- A more efficient divide-and-conquer approach to genome chunking, sequence retrieval vastly accelerates program runtimes
+- JSON encoding of partial results reduces file output volume, size, and complexity
+- Substantially reduced I/O, reduced redundancy means that your data spends more time being analyzed, less time being managed
+- Filtering operations moved to their earliest possible locations in the pipeline; invalid sequences get removed as soon as possible and before downstream processing
   
 ### Enhanced Compatibility
 
-- Updated dependencies for better maintainability
-- New conda recipe for easier installation
-- Pytorch backend for the CNN model
+- Fewer, smaller, and less complex dependencies for better maintainability (removed Pandas, SciKit Learn, Swifter, BioPy, ...?)
 
 ### New Features
 
-- Automatic genome file pre-scanning and validation
-- Checkpoint system for progress recovery
-- Overlap detection and simplification in results
-- Additional parallel execution modes
-- Progress tracking and verbose output options
+- Enhanced checkpoint system
+- New 
+- 
 
 ## Installation
 
