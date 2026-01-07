@@ -93,30 +93,18 @@ TIR-Learner [-h] -f GENOME_FILE -s SPECIES [-l LENGTH] [-p PROCESSOR] [-o OUTPUT
 
 ### Required Arguments
 
-- `-f, --genome_file`
+- `-g, --genome_file`
   - Genome file in FASTA format
   - Must be properly formatted with unique sequence names
-
-- `-s, --species`
-  - Species specification for analysis
-  - Options:
-    - `rice`: Use rice-specific TIR reference library
-    - `maize`: Use maize-specific TIR reference library
-  - Affects which processing path (Part A or B) will be used
 
 ### Optional Arguments
 
 #### Basic Configuration
 
-- `-n, --genome_name` (default: "TIR-Learner")
-  - Name prefix for output files
-  - Used in naming temporary files and final results
-  - Avoid using special characters
-
 - `-l, --length` (default: 5000)
   - Maximum length of TIR transposons to detect
 
-- `-p, -t, --processor` (default: all available CPU cores)
+- `-p, --processor` (default: all available CPU cores)
   - Number of processors to use for parallel operations
 
 #### Directory Configuration
@@ -124,6 +112,7 @@ TIR-Learner [-h] -f GENOME_FILE -s SPECIES [-l LENGTH] [-p PROCESSOR] [-o OUTPUT
   - Directory for final output files
   - Will be created if it doesn't exist
   - Must have write permissions
+  - Will be used for checkpointing and working space, too
     
 ## Program Workflow
 
@@ -136,30 +125,17 @@ TIR-Learner [-h] -f GENOME_FILE -s SPECIES [-l LENGTH] [-p PROCESSOR] [-o OUTPUT
 <br><br>
 </div>
 
-TIR-Learner v3 consists of two main processing paths:
+TIR-Learner v4 contains one processing workflow with an optional filter for plant genomes
 
-### Part A (Rice and Maize)
-Uses three consecutive modules:
-1. **Module 1**: Identify TIR based on existing TIR database
-2. **Module 2**: Predict TIR using de novo tool and match them with database to classify their TIR superfamily
-3. **Module 3**: Classify TIR superfamily of de novo tool predicted TIR with CNN
-
-### Part B (Other Species)
-Uses a single module:
-- **Module 4**: Predict TIR using de novo tool and classify their TIR superfamily with CNN
-
-### Processing Flow
-1. Pre-scan genome file
-2. Route to Part A or B based on species
-3. Execute relevant modules
-4. Post-process results
-    - Combine predictions
-    - Remove overlaps
-    - Generate final output
+- Split the genome into ~5 million base pair fragments (shard long sequences, aggregate short ones)
+- Process each chunk with GRF and TIRvish to produce TIR candidates
+- (For plants) Search the genome and candidates for matches to known Rice/Maize TIR elements; filter these out to redue false discovery
+- Process each GRF and TIRvish result with a convolutional neural network (CNN) model to improve classification accuracy
+- Clean up result
 
 ## Output Files
 
-TIR-Learner generates four output files in the `TIR-Learner-Result` directory:
+TIR-Learner generates several output files in the `TIR-Learner-Result` directory:
 
 ### Raw Results
 
@@ -176,6 +152,17 @@ TIR-Learner generates four output files in the `TIR-Learner-Result` directory:
 1. GFF3 annotation file: `<genome_name>_FinalAnn_filter.gff3`
 2. FASTA sequence file: `<genome_name>_FinalAnn_filter.fa`
 
+### JSON files
+
+1. GRF_json.txt.gz
+2. TIRVish_json.txt.gz
+3. (if applicable) GRF_json_no_homologs.txt.gz
+4. (if applicable) TIRVish_json_no_homologs.txt.gz
+5. post_CNN_GRF_json.txt.gz
+6. post_CNN_TIRVish_json.txt.gz
+
+All JSON files here contain a record of the loci of putative TIR candidates at each successive stage of filtering.
+ 
 ## Algorithm Details
 
 ### TIR Detection
@@ -204,16 +191,10 @@ Superfamily-specific TSD patterns:
 
 ### I/O Optimization
 - Reduced temporary file generation
-- In-memory data processing using Pandas
 - Minimized external storage operations
 
 ### Parallel Processing
 - Python multiprocessing for TIRvish and GRF
-- Swifter for pandas DataFrame parallel processing
-<!-- - Three parallel execution modes:
-  - pyboost: Maximum resource utilization
-  - pystrict: Controlled resource usage
-  - gnup: GNU Parallel implementation -->
 
 ## Contributing
 
@@ -232,6 +213,7 @@ The manuscript of TIR-Learner v3 is currently in preparation. Presentation slide
 
 Previous versions:
 
+- TIR-Learner v3
 - TIR-Learner v2 (Part of EDTA v1):  
 [Benchmarking transposable element annotation methods for creation of a streamlined, comprehensive pipeline](https://doi.org/10.1186/s13059-019-1905-y)
 - TIR-Learner v1:  
