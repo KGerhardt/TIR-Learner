@@ -5,7 +5,7 @@ TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposa
 ## Table of Contents
 
 - [Background](#background)
-- [New in Version 3](#new-in-version-3)
+- [New in Version 4](#new-in-version-4)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Program Workflow](#program-workflow)
@@ -43,7 +43,7 @@ TIR-Learner combines multiple approaches to identify and classify TIR transposon
 ### New Features
 
 - Enhanced checkpoint system records compact partial results
-- Checkpoint files are kept post-run, can be reused by TIR-Learner in reruns (unlikely but nice to have)
+- Checkpoint files are kept post-run, can be reused by TIR-Learner in reruns
 - Checkpoint files improve data transparency
 
 ## Installation
@@ -195,6 +195,8 @@ Superfamily-specific TSD patterns:
 
 ### Parallel Processing
 - Python multiprocessing for TIRvish and GRF
+- Balance between python multiprocessing for I/O and OpenMP backend for CNN processing
+- Fragment-local retrieval of genomic sequence fragments
 
 ## Contributing
 
@@ -206,6 +208,8 @@ Contributions are very welcome! Please feel free to submit a Pull Request.
 ```
 [Citation information to be added upon publication]
 ``` -->
+
+TIR-Learner v4 is currently unpublished and will likely be published as part of a larger EDTA v2 release.
 
 The manuscript of TIR-Learner v3 is currently in preparation. Presentation slides:
 
@@ -222,7 +226,7 @@ Previous versions:
 ## Credits
 
 ### Previous Versions
-Special thanks to [@oushujun](https://github.com/oushujun) and [@WeijiaSu](https://github.com/WeijiaSu) for their fantastic work on TIR-Learner v1 and v2! Their foundational work made this improved version possible.
+Special thanks to [@oushujun](https://github.com/oushujun) and [@WeijiaSu](https://github.com/WeijiaSu) for their fantastic work on TIR-Learner v1 and v2! Their foundational work made this improved version possible. Thanks to Tianyu Lu fir TIR-Learner v3.
 
 ### Acknowledgments
 This work was supported by:
@@ -230,7 +234,7 @@ This work was supported by:
 - [The Ohio Supercomputer Center](https://www.osc.edu/)
 - [OSU Undergraduate Research Access Innovation Seed Grant](https://ugresearch.osu.edu/faculty/funding-and-grants)
 
-The development of TIR-Learner v3 would not have been possible without their generous support in providing opportunities, resources, and platforms for this research.
+The development of TIR-Learner v3 and v4 would not have been possible without their generous support in providing opportunities, resources, and platforms for this research.
 
 ## License
 
