@@ -104,7 +104,6 @@ class json_structure:
 
 
 #Might need to have an additional version that decomposes TIRvish + GRF records into their parts for CNN work; this is OK I think
-
 class json_loader:
 	def __init__(self, working_dir = None):
 		self.json_data = None
@@ -140,25 +139,27 @@ class json_loader:
 			
 			this_workload = {}
 			for seqid in self.json_data[source_file]:
-				if get_names:
-					this_workload[seqid] = {'starts':[],'ends':[],'names':[]}
-				else:
-					this_workload[seqid] = {'starts':[],'ends':[],'names':None}
-
-				for s, e, tsd1, tsd2, tir1, tir2 in	zip(
-							self.json_data[source_file][seqid]['seq_start_incl_tsd'], self.json_data[source_file][seqid]['seq_stop_incl_tsd'],
-							self.json_data[source_file][seqid]['tsd1_size'], self.json_data[source_file][seqid]['tsd2_size'],
-							self.json_data[source_file][seqid]['tir1_size'], self.json_data[source_file][seqid]['tir2_size']
-							):
-					
-					this_workload[seqid]['starts'].append(s-1)
-					this_workload[seqid]['ends'].append(e)
-					
+				if len(self.json_data[source_file]) > 0:
 					if get_names:
-						name = f'{seqid}:start={s}:stop={e}:tsd1_sz={tsd1}:tsd2_sz={tsd2}:tir1_sz={tir1}:tir2_sz={tir2}'
-						this_workload[seqid]['names'].append(name)
-				
-			self.workloads.append((new_source, this_workload,))
+						this_workload[seqid] = {'starts':[],'ends':[],'names':[]}
+					else:
+						this_workload[seqid] = {'starts':[],'ends':[],'names':None}
+
+					for s, e, tsd1, tsd2, tir1, tir2 in	zip(
+								self.json_data[source_file][seqid]['seq_start_incl_tsd'], self.json_data[source_file][seqid]['seq_stop_incl_tsd'],
+								self.json_data[source_file][seqid]['tsd1_size'], self.json_data[source_file][seqid]['tsd2_size'],
+								self.json_data[source_file][seqid]['tir1_size'], self.json_data[source_file][seqid]['tir2_size']
+								):
+						
+						this_workload[seqid]['starts'].append(s-1)
+						this_workload[seqid]['ends'].append(e)
+						
+						if get_names:
+							name = f'{seqid}:start={s}:stop={e}:tsd1_sz={tsd1}:tsd2_sz={tsd2}:tir1_sz={tir1}:tir2_sz={tir2}'
+							this_workload[seqid]['names'].append(name)
+			
+			if len(this_workload) > 0:
+				self.workloads.append((new_source, this_workload,))
 	
 	def load_json_for_cnn(self, json_file):
 		with open(json_file) as inf:
@@ -602,26 +603,24 @@ def dereplicate_json(json_data, overlap_size = 5200):
 		#Huh. So this doesn't guarantee that every index for this grouping will be present. 
 		#It will only be the ones in the json, which could include skips
 		if 'long_chunk_' in k:
-			cleaned_json[k] = {}
-			for v in json_data[k]:
-				#print(k, v)
-				cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
-									'chunking_offset':json_data[k][v]['chunking_offset'],
-									'seq_start_incl_tsd':[],
-									'seq_stop_incl_tsd':[],
-									'tsd1_size':[],
-									'tsd2_size':[],
-									'tir1_size':[],
-									'tir2_size':[]}
+			if len(json_data[k]) > 0:
+				cleaned_json[k] = {}
+				for v in json_data[k]:
+					cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
+										'chunking_offset':json_data[k][v]['chunking_offset'],
+										'seq_start_incl_tsd':[],
+										'seq_stop_incl_tsd':[],
+										'tsd1_size':[],
+										'tsd2_size':[],
+										'tir1_size':[],
+										'tir2_size':[]}
+				
+				#I think this os.path.basename and the TIRvish stuff are fighting in some genomes
+				mat = re.match(chunk_id_regex, os.path.basename(k)).groups()
+				seqid = mat[0]
 			
-			#I think this os.path.basename and the TIRvish stuff are fighting in some genomes
-			mat = re.match(chunk_id_regex, os.path.basename(k)).groups()
-			seqid = mat[0]
-			
-			#print(seqid)
-			#print(os.path.basename(k))
-			#print(mat)
-			#print('###############')
+			else:
+				print(f'JSON key {k} had no entries and will be skipped.')
 			
 			off = int(mat[1])
 			if seqid not in groupings:
@@ -629,18 +628,19 @@ def dereplicate_json(json_data, overlap_size = 5200):
 				
 			groupings[seqid].append((k, off,))
 		else:
-			#Manually copy short groups to the new JSON, otherwise with dicts it's done by reference
-			cleaned_json[k] = {}
-			for v in json_data[k]:
-				cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
-									'chunking_offset':json_data[k][v]['chunking_offset'],
-									'seq_start_incl_tsd':json_data[k][v]['seq_start_incl_tsd'],
-									'seq_stop_incl_tsd':json_data[k][v]['seq_stop_incl_tsd'],
-									'tsd1_size':json_data[k][v]['tsd1_size'],
-									'tsd2_size':json_data[k][v]['tsd2_size'],
-									'tir1_size':json_data[k][v]['tir1_size'],
-									'tir2_size':json_data[k][v]['tir2_size']}
-			json_data[k] = None
+			if len(json_data[k]) > 0:
+				#Manually copy short groups to the new JSON, otherwise with dicts it's done by reference
+				cleaned_json[k] = {}
+				for v in json_data[k]:
+					cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
+										'chunking_offset':json_data[k][v]['chunking_offset'],
+										'seq_start_incl_tsd':json_data[k][v]['seq_start_incl_tsd'],
+										'seq_stop_incl_tsd':json_data[k][v]['seq_stop_incl_tsd'],
+										'tsd1_size':json_data[k][v]['tsd1_size'],
+										'tsd2_size':json_data[k][v]['tsd2_size'],
+										'tir1_size':json_data[k][v]['tir1_size'],
+										'tir2_size':json_data[k][v]['tir2_size']}
+				json_data[k] = None
 				
 		
 	#The logic of this section is to look at long chunk groups and sort them by offset from 0 to whatever
@@ -736,12 +736,22 @@ def dereplicate_json(json_data, overlap_size = 5200):
 				print(f'Access name {access_name} not in json_data[{src}]. This should not happen. Please report the error.')
 		else:
 			print(f'Src {src} not in json data. This should not happen. Please report the error.')
-					
+	
+	#Final pass, remove anything empty
+	final_keys = list(cleaned_json.keys())
+	for k in final_keys:
+		if len(cleaned_json[k]) == 0:
+			remove = cleaned_json.pop(k)
+		else:
+			for jk in list(cleaned_json[k].keys()):
+				if len(cleaned_json[k][jk]['tsd1_size']) == 0:
+					remove = cleaned_json[k].pop(jk)
+	
 	return cleaned_json
 
 '''
 #Testing json dereplication code
-jj = 'TIRVish_json.txt_prefilter.txt'
+jj = 'TIRVish_json.txt'
 with open(jj) as inf:
 	dat = json.load(inf)
 
