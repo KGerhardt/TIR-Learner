@@ -95,79 +95,84 @@ def one_cnn(workload):
 		
 		#Store the sequences for search
 		cnn_seqs.append(hotboi)
-		
-	#Final prep + model search
-	cnn_seqs = np.stack(cnn_seqs)
-	predicted_labels = model.predict(cnn_seqs, verbose = None)
-	#Free space
-	cnn_seqs = None
 	
-	#We don't actually use the max per row data anywhere, so don't even bother
-	#Pure numpy equivalents of the percent and class type selections
-	#max_per_row = np.max(predicted_labels, axis = 1)
-	
-	#Select the CNN's assigned label for each sequence based on which probability is highest
-	numpy_classes = np.argmax(predicted_labels, axis = 1)
-	
-	not_non_tirs = np.where(numpy_classes < 5)[0]
-	
-	passing_indices = []
-	tir_percentages = []
-	tsd_percentages = []
 
-	for check_index, tir_type, in zip(not_non_tirs, l_class[numpy_classes[not_non_tirs]]):
-		this_sequence = bl.my_loaded_sequences[check_index]
-		
-		tsd_1 = this_sequence[0]
-		tir_1 = this_sequence[1]
-		#This one gets rev-comp'd
-		tir_2 = repeat_checker.revcomp(this_sequence[3])
-		tsd_2 = this_sequence[4]
-		
-		#Check if either TIR sequence begins with the correct type of sequence
-		ok_tir_conservation = repeat_checker.check_tir_conservation(tir_type, tir_1, tir_2)
-		if ok_tir_conservation:
-			#Check if the TIR has the correct type and acceptable size, similarity of TSD sequences
-			has_tsd, left_tsd_size, right_tsd_size, tsd_percent = repeat_checker.check_tsd(tsd_1, 
-																			tsd_2, 
-																			tir_type = tir_type,
-																			min_similarity = 0.8)
-			#If so, collect;
-			if has_tsd:
-				#This re-alignment is strictly not necessary and a perfected version of this program 
-				#would simply keep track of the percent through GRF and TIRVish by restructuring those JSON outputs;
-				#I do not believe it's worthwhile currently, this is really only a few sequences and the process is fast 
-				#and we already have the data loaded
-				has_tir, l_rep_sz, r_rep_sz, r_start, q_start, pct = repeat_checker.wfa_align(tir_1, tir_2, 
-																	min_size = 10, min_similarity = 0.8)
-				
-				tir_percentages.append(pct)
-				tsd_percentages.append(tsd_percent)
-				passing_indices.append(check_index)
-				
-	not_non_tirs = None
-	passing_indices = np.array(passing_indices)
+	clean_json, final_gff3, final_fasta, keep_indices = None, None, None, None
 	
-	if passing_indices.shape[0] > 0:
-		numpy_classes = l_class[numpy_classes[passing_indices]].tolist()
-		#retained_cnn_labels = predicted_labels[passing_indices, :].tolist()
-		retained_cnn_labels = (np.round(predicted_labels[passing_indices, :], decimals = 4) * 10000).astype(np.int32).tolist()
-		#for i in range(0, len(retained_cnn_labels)):
-		#	retained_cnn_labels[i] = [ '%.5f' % lab for lab in retained_cnn_labels[i]]
+	if len(cnn_seqs) > 0:
+		#Final prep + model search
+		cnn_seqs = np.stack(cnn_seqs)
+		predicted_labels = model.predict(cnn_seqs, verbose = None)
+		#Free space
+		cnn_seqs = None
+		
+		#We don't actually use the max per row data anywhere, so don't even bother
+		#Pure numpy equivalents of the percent and class type selections
+		#max_per_row = np.max(predicted_labels, axis = 1)
+		
+		#Select the CNN's assigned label for each sequence based on which probability is highest
+		numpy_classes = np.argmax(predicted_labels, axis = 1)
+		
+		not_non_tirs = np.where(numpy_classes < 5)[0]
+		
+		passing_indices = []
+		tir_percentages = []
+		tsd_percentages = []
+		
+
+		for check_index, tir_type, in zip(not_non_tirs, l_class[numpy_classes[not_non_tirs]]):
+			this_sequence = bl.my_loaded_sequences[check_index]
 			
+			tsd_1 = this_sequence[0]
+			tir_1 = this_sequence[1]
+			#This one gets rev-comp'd
+			tir_2 = repeat_checker.revcomp(this_sequence[3])
+			tsd_2 = this_sequence[4]
+			
+			#Check if either TIR sequence begins with the correct type of sequence
+			ok_tir_conservation = repeat_checker.check_tir_conservation(tir_type, tir_1, tir_2)
+			if ok_tir_conservation:
+				#Check if the TIR has the correct type and acceptable size, similarity of TSD sequences
+				has_tsd, left_tsd_size, right_tsd_size, tsd_percent = repeat_checker.check_tsd(tsd_1, 
+																				tsd_2, 
+																				tir_type = tir_type,
+																				min_similarity = 0.8)
+				#If so, collect;
+				if has_tsd:
+					#This re-alignment is strictly not necessary and a perfected version of this program 
+					#would simply keep track of the percent through GRF and TIRVish by restructuring those JSON outputs;
+					#I do not believe it's worthwhile currently, this is really only a few sequences and the process is fast 
+					#and we already have the data loaded
+					has_tir, l_rep_sz, r_rep_sz, r_start, q_start, pct = repeat_checker.wfa_align(tir_1, tir_2, 
+																		min_size = 10, min_similarity = 0.8)
+					
+					tir_percentages.append(pct)
+					tsd_percentages.append(tsd_percent)
+					passing_indices.append(check_index)
+					
+		not_non_tirs = None
+		passing_indices = np.array(passing_indices)
 		
-		#Convert to a sequence-recovery JSON from the partial files and a 
-		#dict of the final seqids and sequences with corrected positional indices
-		clean_json, final_gff3, final_fasta, keep_indices = bl.cnn_filter_json(passing_indices, 
-																				numpy_classes, 
-																				tsd_percentages,
-																				tir_percentages,
-																				module = 'Module4',
-																				cnn_scores = retained_cnn_labels)
-																				#cnn_scores = None)
-		
-	else:
-		clean_json, final_gff3, final_fasta, keep_indices = None, None, None, None
+		if passing_indices.shape[0] > 0:
+			numpy_classes = l_class[numpy_classes[passing_indices]].tolist()
+			#retained_cnn_labels = predicted_labels[passing_indices, :].tolist()
+			retained_cnn_labels = (np.round(predicted_labels[passing_indices, :], decimals = 4) * 10000).astype(np.int32).tolist()
+			#for i in range(0, len(retained_cnn_labels)):
+			#	retained_cnn_labels[i] = [ '%.5f' % lab for lab in retained_cnn_labels[i]]
+				
+			
+			#Convert to a sequence-recovery JSON from the partial files and a 
+			#dict of the final seqids and sequences with corrected positional indices
+			clean_json, final_gff3, final_fasta, keep_indices = bl.cnn_filter_json(passing_indices, 
+																					numpy_classes, 
+																					tsd_percentages,
+																					tir_percentages,
+																					module = 'Module4',
+																					cnn_scores = retained_cnn_labels)
+																					#cnn_scores = None)
+			
+		else:
+			clean_json, final_gff3, final_fasta, keep_indices = None, None, None, None
 
 	return bl.source, clean_json, final_gff3, final_fasta, keep_indices
 	
