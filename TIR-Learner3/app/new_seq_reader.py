@@ -15,7 +15,6 @@ seqid_seqname_regex = re.compile(r';;\d+')
 (1) This is needed by the CNN step, and chunkwise loading via the individual, per-file JSON records is actually a great way to minimize RAM usage
 (2) CNN + GRF loads per file should still be modest; passing whatever results to the appropriate CNN model, which searches + creates another JSON of outputs might be best
 
-
 So the better way to do this all is that the CNN step should 
 '''
 
@@ -36,7 +35,10 @@ class json_structure:
 				
 		self.json_record = {}
 		
+		self.has_records = False
+		
 	def add_record(self, seqid, start, stop, tsd1, tsd2, tir1, tir2, tir_label = None):
+		self.has_records = True
 		if seqid not in self.json_record:
 			if self.include_label:
 				self.json_record[seqid] = {'seq_length':self.seqlens[seqid],
@@ -89,39 +91,7 @@ class json_structure:
 			ordering = np.lexsort((-1 * self.json_record[seqid]['seq_stop_incl_tsd'] - self.json_record[seqid]['tsd2_size'], 
 										self.json_record[seqid]['seq_start_incl_tsd'] + self.json_record[seqid]['tsd1_size'],))
 			
-			'''
-			AS much as I would like to remove shorter elements beforehand, it's possible 
-			that a shorter element passes CNN and a longer one does not. Therefore, not OK
-			to filter at the point.
-			
-			#print('og size', len(ordering))
-			
-			#Sort starts:
-			self.json_record[seqid]['seq_start_incl_tsd'] = self.json_record[seqid]['seq_start_incl_tsd'][ordering]
-			
-			
-			#Find loci where an element repeats
-			mask = np.ones(self.json_record[seqid]['seq_start_incl_tsd'].shape[0], dtype=bool)
-			mask[1:] = self.json_record[seqid]['seq_start_incl_tsd'][1:] != self.json_record[seqid]['seq_start_incl_tsd'][:-1]
 
-			#subset ordering to implicitly remove repeats in others
-			og_size = len(ordering)
-			ordering = ordering[mask]
-			new_size = len(ordering)
-			
-			if new_size < og_size:
-				print(og_size, new_size)
-				print('ord')
-				print(ordering)
-				print('old_starts')
-				print(self.json_record[seqid]['seq_start_incl_tsd'])
-				print('removed starts')
-				for s in self.json_record[seqid]['seq_start_incl_tsd'][np.logical_not(mask)]:
-					print(s)
-				print('new_starts')
-				print(self.json_record[seqid]['seq_start_incl_tsd'][mask])
-			'''
-			
 			self.json_record[seqid]['seq_start_incl_tsd'] = self.json_record[seqid]['seq_start_incl_tsd'][ordering].tolist()
 			self.json_record[seqid]['seq_stop_incl_tsd'] = self.json_record[seqid]['seq_stop_incl_tsd'][ordering].tolist()
 			self.json_record[seqid]['tsd1_size'] = self.json_record[seqid]['tsd1_size'][ordering].tolist()
@@ -392,7 +362,7 @@ class bed_worker:
 					
 		return tir_types, clean_tsd_pcts, clean_tir_pcts
 	
-	def cnn_filter_json(self, passing_indices, tir_types, tsd_percents, tir_percents, module = 'Module4'):				
+	def cnn_filter_json(self, passing_indices, tir_types, tsd_percents, tir_percents, module = 'Module4', cnn_scores = None):				
 		new_json = {}
 		finalized_sequence = {}
 		finalized_gff3 = {}
@@ -409,7 +379,10 @@ class bed_worker:
 
 		'''
 		
-		for index, tir_type, tsd_pct, tir_pct in zip(passing_indices, tir_types, tsd_percents, tir_percents):
+		if cnn_scores is None:
+			cnn_scores = [None] * len(passing_indices)
+		
+		for index, tir_type, tsd_pct, tir_pct, cnn in zip(passing_indices, tir_types, tsd_percents, tir_percents, cnn_scores):
 			#Abbreviated names for tir and tsd sizes
 			seqid, s, e, ts1, ts2, ti1, ti2 = self.reverse_json_record[index]
 			
@@ -429,6 +402,9 @@ class bed_worker:
 											'tir2_size':[],
 											'tir_percent':[],
 											'final_tir_label':[]}
+				
+				if cnn is not None:
+					new_json[seqid]['cnn_scores'] = []
 			
 			new_json[seqid]['seq_start_incl_tsd'].append(s)
 			new_json[seqid]['seq_stop_incl_tsd'].append(e)
@@ -439,6 +415,8 @@ class bed_worker:
 			new_json[seqid]['tir2_size'].append(ti2)
 			new_json[seqid]['tir_percent'].append(tir_pct)
 			new_json[seqid]['final_tir_label'].append(tir_type)
+			if cnn is not None:
+				new_json[seqid]['cnn_scores'].append(cnn)
 			
 			off = new_json[seqid]['chunking_offset']
 			
@@ -450,7 +428,11 @@ class bed_worker:
 			tsd1 = self.my_loaded_sequences[index][0]
 			tsd2 = self.my_loaded_sequences[index][4]
 			
-			suffix = f'TIR:{tir1}_{tir2}_{tir_pct}_TSD:{tsd1}_{tsd2}_{tsd_pct}-+-{ele_size}'
+			if cnn is None:
+				suffix = f'TIR:{tir1}_{tir2}_{tir_pct}_TSD:{tsd1}_{tsd2}_{tsd_pct}-+-{ele_size}'
+			else:
+				cnn_label = '\t'.join([str(s) for s in cnn])
+				suffix = f'TIR:{tir1}_{tir2}_{tir_pct}_TSD:{tsd1}_{tsd2}_{tsd_pct}-+-{ele_size}\t{cnn_label}'
 			
 			#The final records need the offset-corrected values
 			one_idx_start_no_tsd = s + ts1 + off
@@ -565,16 +547,18 @@ class bed_worker:
 								#print(f'{starts[j]} to {ends[j]}')
 								#nests += 1
 							else:
+								#Original favored long sequences, but tir-learner's long sequences tend to be worse; try reversing it?
+								#if element_sizes[i] > element_sizes[j]:
 								if element_sizes[i] > element_sizes[j]:
 									#print(f'Element i {i} kicks element j {j}')
 									#We are removing element j
-									remove_indices.add(j)
+									remove_indices.add(i)
 								else:
 									#print(f'Element j {j} kicks element i {i} and another loop might happen')
 									#The current element is going to be removed, which means information
 									#about what else it overlaps is no longer of any value and we break the loop;
 									#other possible overlaps will be handled by more iterations
-									remove_indices.add(i)
+									remove_indices.add(j)
 									break
 									
 				#There are still elements left to remove / cleaning is not yet done
@@ -606,10 +590,8 @@ class bed_worker:
 	def fake_fasta(self):
 		self.my_loaded_sequences = ''.join(f'>{k}\n{v}\n' for k, v in self.my_loaded_sequences.items())
 	
-
 #5200 is the default TIR size limit (5k) + 200 (extension size default, not really used anymore)
 def dereplicate_json(json_data, overlap_size = 5200):
-	#output_file = os.path.join(output_dir, f'long_chunk_{seqid}_offset_{start}.fasta')
 	chunk_id_regex = re.compile(r'long_chunk_(.+)_offset_(\d+).fasta')
 	
 	cleaned_json = {}
@@ -617,9 +599,12 @@ def dereplicate_json(json_data, overlap_size = 5200):
 	#Purge repeats as we load this data to prevent redundant CNN effort, outputs
 	groupings = {}
 	for k in json_data.keys():
+		#Huh. So this doesn't guarantee that every index for this grouping will be present. 
+		#It will only be the ones in the json, which could include skips
 		if 'long_chunk_' in k:
 			cleaned_json[k] = {}
 			for v in json_data[k]:
+				#print(k, v)
 				cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
 									'chunking_offset':json_data[k][v]['chunking_offset'],
 									'seq_start_incl_tsd':[],
@@ -628,14 +613,23 @@ def dereplicate_json(json_data, overlap_size = 5200):
 									'tsd2_size':[],
 									'tir1_size':[],
 									'tir2_size':[]}
+			
+			#I think this os.path.basename and the TIRvish stuff are fighting in some genomes
 			mat = re.match(chunk_id_regex, os.path.basename(k)).groups()
 			seqid = mat[0]
+			
+			#print(seqid)
+			#print(os.path.basename(k))
+			#print(mat)
+			#print('###############')
+			
 			off = int(mat[1])
 			if seqid not in groupings:
 				groupings[seqid] = []
+				
 			groupings[seqid].append((k, off,))
 		else:
-			#Directly shift short groups to the new JSON, this is by-copy in python for some godawful non-reason
+			#Manually copy short groups to the new JSON, otherwise with dicts it's done by reference
 			cleaned_json[k] = {}
 			for v in json_data[k]:
 				cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
@@ -656,122 +650,102 @@ def dereplicate_json(json_data, overlap_size = 5200):
 	#The final chunk of each long sequence is always added intact
 	
 	for seqid in groupings:
-		
-		#Sort by offset; overlaps can only possibly occur between adjacent offsets and only over the size of the offset, 
-		#so these are the only indices that need checked
 		groupings[seqid] = sorted(groupings[seqid], key=lambda x: x[1])
-
-		#The first offset should always be 0;
-		#The indices that need removed should be those with start >= [NEXT_OFFSET]-[olap_size]
+		
 		for i in range(0, len(groupings[seqid]) - 1):
 			src, off = groupings[seqid][i]
+			
 			next_src, next_off = groupings[seqid][i+1]
-			
-			#print(src)
-			
+						
 			indices_to_remove = []
 			
-			cutoff = next_off - overlap_size
+			#cutoff = next_off - overlap_size
 			
 			access_name = f'{seqid};;{off}'
-			starts = np.array(json_data[src][access_name]['seq_start_incl_tsd']) + off
-			group_size = starts.shape[0]
+			next_access_name = f'{seqid};;{next_off}'
 			
-			#Find any TSDs that are plausibly captured by the next long chunk
-			remove_these_starts = np.where(starts >= cutoff)[0]
+			#We could probably do some math to figure out where exactly the sequnces 
+			#overlap because that should be all possible repeats
+			#But it's just not much work to brute force it here
 			
-			#If any starts might be:
-			if remove_these_starts.shape[0] > 0:
-				starts = starts[remove_these_starts]
-								
-				#Collect their corresponding ends
-				ends = np.array(json_data[src][access_name]['seq_stop_incl_tsd']) + off
-				ends = ends[remove_these_starts]
-				
-				#Find the max value of such start-end pairs
-				max_end = np.max(ends)
-				
-				#Get the next chunk
-				next_access = f'{seqid};;{next_off}'
-				
-				#Get that chunk's end loci, select all that are possibly captured by the previous chunk's tail
-				next_ends = np.array(json_data[next_src][next_access]['seq_stop_incl_tsd']) + next_off
-				remove_these_ends = np.where(next_ends <= max_end)[0]
-				
-				#If there are any
-				if remove_these_ends.shape[0] > 0:
-					next_ends = next_ends[remove_these_ends]
+			these_starts = None
+			these_ends = None
+			
+			next_starts = None
+			next_ends = None
+			
+			if src in json_data:
+				if access_name in json_data[src]:
+					these_starts = np.array(json_data[src][access_name]['seq_start_incl_tsd']) + off
+					these_ends   = np.array(json_data[src][access_name]['seq_stop_incl_tsd']) + off
+					if next_src in json_data:
+						if next_access_name in json_data[next_src]:								
+							next_starts = np.array(json_data[next_src][next_access_name]['seq_start_incl_tsd']) + next_off
+							next_ends = np.array(json_data[next_src][next_access_name]['seq_stop_incl_tsd']) + next_off
+							
+							#Find shared start indices in the genome, get their indicess
+							intersect_values, left_starts, right_starts = np.intersect1d(these_starts, next_starts, return_indices = True)
+							#Often, there will be no intersections
+							if left_starts.shape[0] > 0:
+								#Subset to only the overlaps
+								next_starts, next_ends = next_starts[right_starts], next_ends[right_starts]
+								#Double loop is dangerous but it's very small arrays in basically all cases
+								for i in left_starts:
+									this_start = these_starts[i]
+									this_end = these_ends[i]
+									for j in next_ends[next_starts == this_start]:
+										if this_end == j:
+											indices_to_remove.append(int(i))
+											
+								indices_to_remove = np.unique(np.array(indices_to_remove, dtype = np.int64))
 					
-					#Collect their starts
-					next_starts = np.array(json_data[next_src][next_access]['seq_start_incl_tsd']) + next_off
-					next_starts = next_starts[remove_these_ends]
+					valid_indices = np.arange(len(these_starts))
+					#If there are skip indices, remove those
+					if len(indices_to_remove) > 0:
+						valid_indices = np.delete(valid_indices, indices_to_remove)
 					
-					#Create a list of start-end pairings in the next chunk
-					se_dict = {}
-					for s, e in zip(next_starts, next_ends):
-						if s not in se_dict:
-							se_dict[s] = set([e])
-						else:
-							se_dict[s].add(e)
+					#Copy the data over from the current long chunk
+					for i in valid_indices:
+						cleaned_json[src][access_name]['seq_start_incl_tsd'].append(json_data[src][access_name]['seq_start_incl_tsd'][i])
+						cleaned_json[src][access_name]['seq_stop_incl_tsd'].append(json_data[src][access_name]['seq_stop_incl_tsd'][i])
+						cleaned_json[src][access_name]['tsd1_size'].append(json_data[src][access_name]['tsd1_size'][i])
+						cleaned_json[src][access_name]['tsd2_size'].append(json_data[src][access_name]['tsd2_size'][i])
+						cleaned_json[src][access_name]['tir1_size'].append(json_data[src][access_name]['tir1_size'][i])
+						cleaned_json[src][access_name]['tir2_size'].append(json_data[src][access_name]['tir2_size'][i])
 					
-					#Check to see if the current chunk has any start + end pairings in common with the next and record their indices;
-					#these are the duplicate indices to remove from the current chunk
-					for i, j, k in zip(starts, ends, remove_these_starts):
-						if i in se_dict:
-							if e in se_dict[i]:
-								indices_to_remove.append(k)
-			
-					indices_to_remove = np.array(indices_to_remove).tolist()
-
-			#Initialize with a no-records removed version
-			#Python normally copies dicts by reference. It's one of the very few times that happens and it 
-			#means we have to manually recreate the JSON record
-			
-			indices_to_remove = set(indices_to_remove)
-			
-			#If there are indices to remove, create an empty record for cleaned json
-			for i in range(0, group_size):
-				if i not in indices_to_remove:
+					#Free space
+					json_data[src] = None
+				else:
+					print(f'Access name {access_name} not in json_data[{src}]. This should not happen. Please report the error.')
+			else:
+				print(f'Src {src} not in json data. This should not happen. Please report the error.')				
+					
+		#Final group			
+		src, off = groupings[seqid][len(groupings[seqid]) - 1]
+		access_name = f'{seqid};;{off}'
+		if src in json_data:
+			if access_name in json_data[src]:
+				for i in range(0, len(json_data[src][access_name]['seq_start_incl_tsd'])):
 					cleaned_json[src][access_name]['seq_start_incl_tsd'].append(json_data[src][access_name]['seq_start_incl_tsd'][i])
 					cleaned_json[src][access_name]['seq_stop_incl_tsd'].append(json_data[src][access_name]['seq_stop_incl_tsd'][i])
 					cleaned_json[src][access_name]['tsd1_size'].append(json_data[src][access_name]['tsd1_size'][i])
 					cleaned_json[src][access_name]['tsd2_size'].append(json_data[src][access_name]['tsd2_size'][i])
 					cleaned_json[src][access_name]['tir1_size'].append(json_data[src][access_name]['tir1_size'][i])
 					cleaned_json[src][access_name]['tir2_size'].append(json_data[src][access_name]['tir2_size'][i])
-
-			json_data[src] = None
-		
-		#The final JSON chunk per seqid is always fine
-		k, final_off = groupings[seqid][len(groupings[seqid]) - 1]
-		cleaned_json[k] = {}
-		for v in json_data[k]:
-			cleaned_json[k][v] = {'seq_length':json_data[k][v]['seq_length'],
-								'chunking_offset':json_data[k][v]['chunking_offset'],
-								'seq_start_incl_tsd':json_data[k][v]['seq_start_incl_tsd'],
-								'seq_stop_incl_tsd':json_data[k][v]['seq_stop_incl_tsd'],
-								'tsd1_size':json_data[k][v]['tsd1_size'],
-								'tsd2_size':json_data[k][v]['tsd2_size'],
-								'tir1_size':json_data[k][v]['tir1_size'],
-								'tir2_size':json_data[k][v]['tir2_size']}
-		
-		json_data[k] = None
-
+			else:
+				print(f'Access name {access_name} not in json_data[{src}]. This should not happen. Please report the error.')
+		else:
+			print(f'Src {src} not in json data. This should not happen. Please report the error.')
+					
 	return cleaned_json
-	
 
-'''	
-#Testing for JSON derep code
-jj = 'big_genome_saved/GRF_json.txt'
+#Testing json dereplication code
+jj = 'TIRVish_json.txt_prefilter.txt'
 with open(jj) as inf:
 	dat = json.load(inf)
 
 new_j = dereplicate_json(dat)
 
-jj_out = 'big_genome_saved/GRF_json_derep.txt'
-with open(jj_out, 'w') as out:
-	json.dump(new_j, out, indent = 4)
-
-'''
 
 '''	
 #This works as a template function for others to call and work with easily	

@@ -115,7 +115,7 @@ def one_cnn(workload):
 	tir_percentages = []
 	tsd_percentages = []
 
-	for check_index, tir_type in zip(not_non_tirs, l_class[numpy_classes[not_non_tirs]]):
+	for check_index, tir_type, in zip(not_non_tirs, l_class[numpy_classes[not_non_tirs]]):
 		this_sequence = bl.my_loaded_sequences[check_index]
 		
 		tsd_1 = this_sequence[0]
@@ -141,7 +141,6 @@ def one_cnn(workload):
 				has_tir, l_rep_sz, r_rep_sz, r_start, q_start, pct = repeat_checker.wfa_align(tir_1, tir_2, 
 																	min_size = 10, min_similarity = 0.8)
 				
-					
 				tir_percentages.append(pct)
 				tsd_percentages.append(tsd_percent)
 				passing_indices.append(check_index)
@@ -151,13 +150,21 @@ def one_cnn(workload):
 	
 	if passing_indices.shape[0] > 0:
 		numpy_classes = l_class[numpy_classes[passing_indices]].tolist()
+		#retained_cnn_labels = predicted_labels[passing_indices, :].tolist()
+		retained_cnn_labels = (np.round(predicted_labels[passing_indices, :], decimals = 4) * 10000).astype(np.int32).tolist()
+		#for i in range(0, len(retained_cnn_labels)):
+		#	retained_cnn_labels[i] = [ '%.5f' % lab for lab in retained_cnn_labels[i]]
+			
 		
 		#Convert to a sequence-recovery JSON from the partial files and a 
 		#dict of the final seqids and sequences with corrected positional indices
 		clean_json, final_gff3, final_fasta, keep_indices = bl.cnn_filter_json(passing_indices, 
 																				numpy_classes, 
 																				tsd_percentages,
-																				tir_percentages)
+																				tir_percentages,
+																				module = 'Module4',
+																				cnn_scores = retained_cnn_labels)
+																				#cnn_scores = None)
 		
 	else:
 		clean_json, final_gff3, final_fasta, keep_indices = None, None, None, None

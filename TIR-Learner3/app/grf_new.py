@@ -252,8 +252,8 @@ def GRF_manager(input_genome_files, original_genome_seqlen_dict, output_director
 		#with multiprocessing.Pool(1) as pool:
 			for json_dict, genome_file, output_directory in pool.imap_unordered(one_GRF, args):				
 				#Convert out of numpy for json write
-							
-				combined_json[genome_file] = json_dict.json_record
+				if json_dict.has_records:
+					combined_json[genome_file] = json_dict.json_record
 				
 				ct += 1
 				if ct % percent_mod == 0:

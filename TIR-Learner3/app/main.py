@@ -98,7 +98,7 @@ class newTL:
 	#Runs GRF, processes results into a JSON file
 	def GRF(self):
 		if self.existing_grf is None:
-			self.grf_file = GRF_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
+			self.grf_file = GRF_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, threads = self.threads)
 			compress(self.grf_file, threads = self.threads)
 		else:
 			if os.path.exists(self.existing_grf):
@@ -112,7 +112,7 @@ class newTL:
 	#Runs TIRvish, processes results into a json file
 	def TIRvish(self):
 		if self.existing_tirvish is None:
-			self.tirvish_file = TIRvish_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, self.threads)
+			self.tirvish_file = TIRvish_manager(self.split_genome_files, self.seqlens, self.active_dir, self.check_dir, self.olap, self.chunk, threads = self.threads)
 			compress(self.tirvish_file, threads = self.threads)
 		else:
 			if os.path.exists(self.existing_tirvish):
