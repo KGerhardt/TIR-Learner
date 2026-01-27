@@ -739,13 +739,14 @@ def dereplicate_json(json_data, overlap_size = 5200):
 					
 	return cleaned_json
 
+'''
 #Testing json dereplication code
 jj = 'TIRVish_json.txt_prefilter.txt'
 with open(jj) as inf:
 	dat = json.load(inf)
 
 new_j = dereplicate_json(dat)
-
+'''
 
 '''	
 #This works as a template function for others to call and work with easily	

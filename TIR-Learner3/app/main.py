@@ -7,11 +7,6 @@
 import sys
 import os
 
-#We handle most of the parallelization in python, leave exactly 2 threads / CNN process
-os.environ['OMP_NUM_THREADS'] = '2'
-os.environ["KERAS_BACKEND"] = "torch"  # use pytorch as keras backend
-os.environ["KMP_WARNINGS"] = '0'  # mute all OpenMP warnings
-
 from .genomeSplitter import genomeSplitter
 
 from .tirvish_new import TIRvish_manager
@@ -22,6 +17,21 @@ from .blast_new import blaster
 from .output_compressor import compress, decompress
 
 import shutil
+
+
+'''
+Notes for future development:
+
+The overwhelmingly likely use-case for this code is GRF + TIRVish + CNN with no homology search. There is
+still some small but meaningful speedup to be gained:
+
+Each genome chunk is already loaded twice for TIRvish and GRF as part of the tan_checker code
+The GRF sequences are loaded once as part of the GRF output filtering stage and once as part of the CNN processing step
+TIRVish has some rare cases where its performance is terrible on just a few genome chunks and takes 10s of minutes to process 5Mbp
+
+Running GRF+TIRvish concurrently and immediately applying CNN to GRF results to avoid double I/O is probably best-case. However, this is likely
+a bunch of work for *very* small time gains in most cases.
+'''
 
 class newTL:
 	def __init__(self, genome_file_path: str, TIR_length: int = 5_000,

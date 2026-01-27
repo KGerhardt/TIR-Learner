@@ -152,26 +152,6 @@ def one_GRF(gen):
 		#these are the with-TSDs boundaries
 		full_element_start, full_element_stop = local_start - tsd_size, local_stop + tsd_size
 		
-		'''
-		#Check if the sequence is far enough away from edges that have coverage via overlaps
-		ok_to_continue = True
-		#If this is a long sequence and not the first chunk
-		if needs_start_truncation:
-			#The sequence is not extensible towards the beginning in this chunk, 
-			#but will be extensible at the end of the previous chunk
-			if full_element_start <= start_truncation_cutoff:
-				ok_to_continue = False
-		#If this is a long sequence and not the last chunk
-		if needs_end_truncation:
-			#The sequence is not extensible towards the end in this chunk, 
-			#but will be extensible in the start of the next chunk
-			if full_element_stop >= end_truncation_cutoff:
-				ok_to_continue = False
-		
-		#Only bother reporting sequences that are able to be full length, or as full-length as possible given a sequence boundary
-		if ok_to_continue:
-		'''
-		
 		#Uses prefix sum arrays to check if TA and N content, sequence length are OK
 		#TA + N indices are intentionally 1-indexed to match the formatting of GRF
 		
