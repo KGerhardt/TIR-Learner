@@ -13,7 +13,6 @@ from .get_tans import tan_worker
 from .new_tir_tsd import tsd_tir_checker
 from .new_seq_reader import json_structure, dereplicate_json
 
-
 #Regular expressions used here and there
 genome_split_regex = re.compile(r'(.+);;(\d+)')
 grp_regex = re.compile(r'_offset_(\d+).fasta')
