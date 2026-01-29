@@ -13,6 +13,8 @@ import keras                                                                    
 from .new_seq_reader import json_loader, bed_worker, json_structure
 
 import multiprocessing
+#multiprocessing.set_start_method("spawn")
+
 import numpy as np
 
 PROGRAM_ROOT_DIR_PATH = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -102,6 +104,7 @@ def one_cnn(workload):
 	if len(cnn_seqs) > 0:
 		#Final prep + model search
 		cnn_seqs = np.stack(cnn_seqs)
+				
 		predicted_labels = model.predict(cnn_seqs, verbose = None)
 		#Free space
 		cnn_seqs = None

@@ -18,7 +18,6 @@ from .output_compressor import compress, decompress
 
 import shutil
 
-
 '''
 Notes for future development:
 
@@ -157,6 +156,10 @@ class newTL:
 		self.prepare_directory(self.final_dir)
 		#Move all TIRVish materials
 		if self.tirvish_file is not None:
+			for f in os.listdir(self.check_dir):
+				if 'TIRVish_json' in f and not f.endswith('.gz'):
+					compress(os.path.join(self.check_dir, f), threads = self.threads)
+				
 			base_file = os.path.join(self.check_dir, 'TIRVish_json.txt.gz')
 			homolog_file = os.path.join(self.check_dir, 'TIRVish_json_no_homologs.txt.gz')
 			base_dest = os.path.join(self.final_dir, 'TIRVish_json.txt.gz')
@@ -166,12 +169,16 @@ class newTL:
 			if os.path.exists(homolog_file):
 				shutil.move(homolog_file, homolog_dest)
 				
-			compress(final_tirvish, threads = self.threads)
+			#compress(final_tirvish, threads = self.threads)
 			cnn_dest = os.path.join(self.final_dir, 'post_CNN_TIRVish_json.txt.gz')
 			shutil.move(f'{final_tirvish}.gz', cnn_dest)
 		
 		#Move all GRF materials	
 		if self.grf_file is not None:
+			for f in os.listdir(self.check_dir):
+				if 'GRF_json' in f and not f.endswith('.gz'):
+					compress(os.path.join(self.check_dir, f), threads = self.threads)
+					
 			base_file = os.path.join(self.check_dir, 'GRF_json.txt.gz')
 			homolog_file = os.path.join(self.check_dir, 'GRF_json_no_homologs.txt.gz')
 			base_dest = os.path.join(self.final_dir, 'GRF_json.txt.gz')
@@ -180,8 +187,8 @@ class newTL:
 			shutil.move(base_file, base_dest)
 			if os.path.exists(homolog_file):					
 				shutil.move(homolog_file, homolog_dest)
-				
-			compress(final_grf, threads = self.threads)
+			
+			#compress(final_grf, threads = self.threads)
 			cnn_dest = os.path.join(self.final_dir, 'post_CNN_GRF_json.txt.gz')
 			shutil.move(f'{final_grf}.gz', cnn_dest)
 
