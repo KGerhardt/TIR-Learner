@@ -347,7 +347,6 @@ class bed_worker:
 					digested_entry = (tsd1_string, tir1_string, middle_string, tir2_string, tsd2_string,)
 					
 					reverse_record = (seqid, s, e, tsd1, tsd2, tir1, tir2, )
-					#print(tsd1_string + tir1_string + middle_string + tir2_string + tsd2_string == this_subsequence)
 					
 					self.my_loaded_sequences.append(digested_entry)
 					self.reverse_json_record[seq_index] = reverse_record

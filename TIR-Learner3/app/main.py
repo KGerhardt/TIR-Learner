@@ -18,6 +18,7 @@ from .output_compressor import compress, decompress
 
 import shutil
 
+
 '''
 Notes for future development:
 

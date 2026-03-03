@@ -4,16 +4,12 @@ import json
 
 warnings.filterwarnings("ignore", category=UserWarning)  # mute keras warning
 
-# Attention: sklearn does not automatically import its subpackages
-#from sklearn.preprocessing import LabelEncoder                                  # noqa
-
 import torch                                                                    # noqa
 import keras                                                                    # noqa
 
 from .new_seq_reader import json_loader, bed_worker, json_structure
 
 import multiprocessing
-#multiprocessing.set_start_method("spawn")
 
 import numpy as np
 
