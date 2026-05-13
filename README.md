@@ -9,9 +9,9 @@ TIR-Learner is an ensemble pipeline for Terminal Inverted Repeat (TIR) transposa
 
 Version 4 is a complete, end-to-end rewrite of the program. It retains the logical workflow, the external software calls (BLAST, GRF, TIRvish, Keras), and the core CNN model from v3, but every supporting layer — genome handling, candidate processing, parallelization, intermediate I/O, and post-processing — has been reimplemented from scratch. 
 
-Results in TIR-Learner v4 are essentially identical to those in v3, excepting a bugfix to correctly localize sequence retrievals from TIRvish, edge case inclusions/exclusions dur to v4 correctly calculating TIR percent identity, and small changes introduced though (slight) indel allowance in TIR, TSD sequences. 
+Results in TIR-Learner v4 are essentially identical to those in v3, excepting a bugfix to correctly localize sequence retrievals from TIRvish, edge case inclusions/exclusions due to v4 correctly calculating TIR percent identity, and small changes introduced through (slight) indel allowance in TIR, TSD sequences. 
 
-TIR-Learner v4 is about 3.3x faster than v3 and uses vastly less RAM, acheiving <= 2GB RAM per thread usage. Processing genomes of any size is possible with v4.
+TIR-Learner v4 is about 3.3x faster than v3 and uses vastly less RAM, achieving <= 2GB RAM per thread usage. Processing genomes of any size is possible with v4.
 
 ## Table of Contents
 
@@ -42,8 +42,8 @@ Version 4 keeps the v3 logical workflow (genome → TIRvish/GRF → optional hom
 
 ### Functional alterations
 
-- **Bugfixes.** V3 has a handful sequence-retrieval and edge-case GRF/TIRvish parsing bugs that affect a minority of sequences. These are fixed in V4.
-- **Improved TSD search behavior.** V3 used an inefficient TSD and TIR checking module that only accepted ungapped TIR/TSD sequences and prematurely termimates TIR similarity calculations after only 10 matching bases. V4 uses a more sensitive, indel-tolerant approach and correctly calculates TIR identity over the full span.
+- **Bugfixes.** V3 has a handful of sequence-retrieval and edge-case GRF/TIRvish parsing bugs that affect a minority of sequences. These are fixed in V4.
+- **Improved TSD search behavior.** V3 used an inefficient TSD and TIR checking module that only accepted ungapped TIR/TSD sequences and prematurely terminated TIR similarity calculations after only 10 matching bases. V4 uses a more sensitive, indel-tolerant approach and correctly calculates TIR identity over the full span.
 - **Transparent, persistent outputs.** All major computational outputs are kept in compact JSON summary files.
 
 ### Structural improvements
@@ -61,7 +61,7 @@ Version 4 keeps the v3 logical workflow (genome → TIRvish/GRF → optional hom
 TIR-Learner v3 suffered from a handful of issues that limited its usability on large genomes: 
 
 * (3-1) The program took an aggressive, memory-forward method of filtering results using the Pandas package. While this approach was reasonably fast, memory copying in Python's parallel architecture and subtle design choices in TIR-Learner v3 often caused RAM consumption in the hundreds of GB for even reasonably sized genomes ~5 Gbp.
-* (3-2) v3 used a very inefficient method of sequence retrieval to extract TIR candidates after processing. In smaller, more fragmented genomes (such as the pacific shrimp genome used in TIR-Learner v3's testing), the scalability issues of the specific BioPy implementation were not readily apparent. Modern, complete chromosome genomes exposed this issue, and in most such cases the outright majority of program runtime would be consumed in this computationally very simple process.
+* (3-2) v3 used a very inefficient method of sequence retrieval to extract TIR candidates after processing. In smaller, more fragmented genomes (such as the Pacific shrimp genome used in TIR-Learner v3's testing), the scalability issues of the specific BioPy implementation were not readily apparent. Modern, complete chromosome genomes exposed this issue, and in most such cases, the outright majority of program runtime would be consumed in this computationally very simple process.
 
 A typical eukaryotic genome with intact chromosomes would spend ~60% of its runtime in TIR-Learner v3 in these two steps, with TIRvish, GRF, and the CNN labelling collectively comprising the remaining 40%. While CPU utilization was good at ~70% @ 48 threads, the poor baseline performance of the underlying approaches made this figure misleading.
 
@@ -69,7 +69,7 @@ v4 solves these issues:
 
 * (4-1) Fixed-size genome chunking separates original genome size from RAM use entirely.
 * (4-2) More efficient filtering algorithms, a streaming filtering approach, and chunk-local filtering distribute work and ensure predictable RAM use/thread irrespective of genome size, TIR density.
-* (4-3) Chunk-local sequence retrieval is ultra fast, distributed, and requires little RAM.
+* (4-3) Chunk-local sequence retrieval is ultra-fast, distributed, and requires little RAM.
 
 The same eukaryotic genome processed with TIR-Learner v4 spends ~0.1% of its runtime in steps equivalent to (3-1) and (3-2). Although v4 is also more efficient in the GRF, TIRvish, and especially the CNN steps due to better load balancing and controlled resource allocation in the CNN stage, the baseline of work done by these tools is quite substantial. They account for nearly the entirety of the remaining ~30% of v4's runtime compared to v3. CPU utilization is also better, typically ~80% for shorter genomes and plateauing around ~90% for long ones.
 
@@ -250,7 +250,7 @@ Superfamily-specific TSD patterns:
 
 ## Citation
 
-TIR-Learner v4 is probably not going to be a separate publication, but will instead likely appear bundled alongside the release of EDTA V2.
+TIR-Learner v4 has not yet been published and will likely appear bundled alongside the release of a new EDTA version.
 
 The manuscript describing TIR-Learner v3 is in preparation. Slides:
 
