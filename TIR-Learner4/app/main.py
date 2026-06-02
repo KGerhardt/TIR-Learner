@@ -35,11 +35,12 @@ a bunch of work for *very* small time gains in most cases.
 
 class newTL:
 	def __init__(self, genome_file_path: str, TIR_length: int = 5_000,
-				 processors: int = 1, species = None, wd = 'TIR_Learner_working_directory',
-				 extension_size = 20, chunk_size = 5_000_000, olap = 7_500, skip_tirvish = False, 
+				 processors: int = 1, cnn_ratio: int = 4, species = None, wd = 'TIR_Learner_working_directory',
+				 extension_size = 20, chunk_size = 5_000_000, olap = 7_500, skip_tirvish = False,
 				 skip_grf = False, existing_tirvish = None, existing_grf = None):
-		
+
 		self.threads = processors
+		self.cnn_ratio = max(2, cnn_ratio)
 		
 		self.gf = genome_file_path
 		self.gfi = f'{self.gf}.fxi'
@@ -146,11 +147,11 @@ class newTL:
 
 	
 	def CNN(self):
-		#Use half threads and give each CNN process 2 OMP threads; balances speed and memory
-		manager = CNN_manager(self.tirvish_file, 
-					self.grf_file, 
-					self.wd, 
-					max([self.threads // 2, 1]))
+		#Use threads // cnn_ratio processes, each with cnn_ratio OMP threads; balances speed and memory
+		manager = CNN_manager(self.tirvish_file,
+					self.grf_file,
+					self.wd,
+					max([self.threads // self.cnn_ratio, 1]))
 		
 		final_fa, final_g3, final_fa_filt, final_g3_filt, final_tirvish, final_grf = manager.run()
 		

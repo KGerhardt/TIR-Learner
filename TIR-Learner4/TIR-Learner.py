@@ -29,6 +29,12 @@ def options():
 	parser.add_argument("-p", "-t", "--cpu", "--processors",
 						help="Number of parallel processes. Default 1.", type=int, default=1, dest='processors')
 
+	parser.add_argument("-k", "--cnn_ratio",
+						help="CPU cores (OMP threads) per CNN process. Number of concurrent CNN "
+							 "processes = -p // k (min 1), and each holds its own model copy, so larger "
+							 "k means fewer model copies / lower peak RAM. Min 2. Default 4.",
+						type=int, default=4, dest='cnn_ratio')
+
 	parser.add_argument("-o", "--directory", "--output_dir", help=f"Where to place results. \
 						Also used as the working directory. \
 						Will be created if it does not exist. \
@@ -95,12 +101,16 @@ def main():
 				print(f'\t{s}')
 			ok_to_continue = False
 						
-	if ok_to_continue:	
+	# CNN cores-per-process. Drives both OMP_NUM_THREADS and the CNN pool size (threads // cnn_ratio).
+	# Clamped to >= 2 so it can never collapse to a single OMP thread on a multi-process run.
+	cnn_ratio = max(2, parsed_args.cnn_ratio)
+
+	if ok_to_continue:
 		if threads == 1:
 			os.environ['OMP_NUM_THREADS'] = '1'
 		else:
-			#We handle most of the parallelization in python, leave exactly 2 threads / CNN process
-			os.environ['OMP_NUM_THREADS'] = '2'
+			#We handle most of the parallelization in python; give each CNN process cnn_ratio OMP threads
+			os.environ['OMP_NUM_THREADS'] = str(cnn_ratio)
 		os.environ["KERAS_BACKEND"] = "torch"  # use pytorch as keras backend
 		os.environ["KMP_WARNINGS"] = '0'  # mute all OpenMP warnings
 		
@@ -121,6 +131,7 @@ def main():
 								genome_file_path = genome_file,
 								TIR_length = tir_max_length,
 								processors = threads,
+								cnn_ratio = cnn_ratio,
 								species = species,
 								wd = directory,
 								skip_tirvish = skip_t,
