@@ -24,6 +24,9 @@ long_chunk_offset_regex = re.compile(r'long_chunk_(.+)_offset_(\d+).fasta')
 #This one is pretty simple
 cig_parse_regex = re.compile(r'(\d+)')
 
+#Rust GRF detection binary (drop-in for grf-main). Override via GRF_RS_BIN env var.
+GRF_RS_BIN = os.environ.get('GRF_RS_BIN', 'grf_rs')
+
 def grf_init(output_dir, max_tir_len):
 	global outdir
 	outdir = output_dir
@@ -52,21 +55,13 @@ def one_GRF(gen):
 	
 	chunk_base = os.path.basename(gen)
 	
-	out = os.path.join(outdir, f'{chunk_base}_grfmite')
+	out = os.path.join(outdir, os.path.splitext(chunk_base)[0])  # grf_rs --batch writes here
 	
 	#out = args[1]
 	actual_output_file = os.path.join(out, 'candidate.fasta')
 	#partial_json = os.path.join(out, 'grf_partial_json.txt')
 	
-	comm = ' '.join([f'grf-main -i {gen} -o {out} -c 1 -t 1 -p 20 --min_space 10 --max_space {TIR_length}',
-	f'--max_indel 0 --min_tr 10 --min_spacer_len 10 --max_spacer_len {TIR_length}'
-	])
-	
-	#print(comm)
-	comm = comm.split()
-	
-	#GRF command is very slow
-	subprocess.run(comm, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
+	#Detection is done up-front by one grf_rs --batch call in GRF_manager; candidate.fasta already exists.
 	
 	min_seqlen = 50
 	max_N_pct = 0.2
@@ -168,7 +163,7 @@ def one_GRF(gen):
 			if tsd_size > 6 or tsd == "TAA" or tsd == "TTA" or tsd == "TA" or first_4 == "CACT" or first_4 == "GTGA":
 				
 				#TIRs are also symmetrical in GRF
-				tir_size = parse_cig(cig)
+				tir_size = int(cig)
 				
 				#Check TIR is acceptable length and similarity so that we don't have to post CNN
 				left_tir_seq = sequence[0:tir_size]
@@ -222,6 +217,18 @@ def GRF_manager(input_genome_files, original_genome_seqlen_dict, output_director
 		
 		combined_json = {}
 		#with open(outf, 'wb') as outfile:
+		#--- Rust GRF detection: ONE work-stealing batch over all chunks (replaces per-file grf-main) ---
+		listfile = os.path.join(output_directory, 'grf_batch_list.txt')
+		with open(listfile, 'w') as lf:
+			for g in args:
+				lf.write(g + '\n')
+		batch_cmd = [GRF_RS_BIN, '--batch', listfile, '-o', output_directory,
+			'-c', '1', '-t', str(threads), '-p', '20',
+			'--min_space', '10', '--max_space', str(max_TIR_length),
+			'--max_indel', '0', '--min_tr', '10',
+			'--min_spacer_len', '10', '--max_spacer_len', str(max_TIR_length)]
+		subprocess.run(batch_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
 		with multiprocessing.Pool(threads, initializer=grf_init, initargs=(output_directory, max_TIR_length)) as pool:
 		#with multiprocessing.Pool(1) as pool:
 			for json_dict, genome_file, output_directory in pool.imap_unordered(one_GRF, args):				

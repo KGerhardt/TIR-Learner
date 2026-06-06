@@ -105,6 +105,7 @@ cd TIR-Learner
 mamba env create -f environment.yml -n TIRLearner_env
 mamba activate TIRLearner_env
 ```
+
 Run the program with:
 
 ```shell
@@ -116,7 +117,7 @@ python TIR-Learner4/TIR-Learner.py [options]
 - Python ≥ 3.10
 - BLAST+
 - GenomeTools (`gt`, provides TIRvish)
-- GRF (Generic Repeat Finder)
+- `grfmite-rs` (bioconda) — fast Rust GRF MITE detector; replaces the external GRF binary.
 - `pigz` (optional; falls back to `gzip`)
 - Python packages:
   - `keras` ≥ 3
