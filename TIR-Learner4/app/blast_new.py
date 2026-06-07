@@ -12,7 +12,7 @@ import pyfastx
 from .genomeSplitter import genomeSplitter
 from .new_seq_reader import json_loader, bed_worker, json_structure
 from .new_tir_tsd import tsd_tir_checker
-from .output_compressor import compress
+from .output_compressor import compress, write_formatted_json
 
 import numpy as np
 
@@ -363,8 +363,7 @@ class blaster:
 
 					final_json[og_seqid] = this_result
 		
-		with open(json_outfile, 'w', encoding = 'ascii') as out:
-			json.dump(final_json, out, indent = 4)
+		write_formatted_json(final_json, json_outfile)
 			
 		return json_outfile, mod1_fasta, mod1_fasta_filt, mod1_gff, mod1_gff_filt
 	
@@ -470,8 +469,7 @@ class blaster:
 			if not os.path.exists(checkf):
 				clean_json = self.blast_from_json(tirvish_json)
 				non_homolog_tirvish_json_file = os.path.join(self.wd, 'module1', 'TIRVish_json_no_homologs.txt')
-				with open(non_homolog_tirvish_json_file, 'w', encoding='ascii') as out:
-					json.dump(clean_json, out, indent = 4)
+				write_formatted_json(clean_json, non_homolog_tirvish_json_file)
 					
 				shutil.copy(non_homolog_tirvish_json_file, checkf)
 				compress(checkf, self.threads)
@@ -485,8 +483,7 @@ class blaster:
 			if not os.path.exists(checkf):
 				clean_json = self.blast_from_json(grf_json)
 				non_homolog_grf_json_file = os.path.join(self.wd, 'module1', 'GRF_json_no_homologs.txt')
-				with open(non_homolog_grf_json_file, 'w', encoding='ascii') as out:
-					json.dump(clean_json, out, indent = 4)
+				write_formatted_json(clean_json, non_homolog_grf_json_file)
 					
 				shutil.copy(non_homolog_grf_json_file, checkf)
 				compress(checkf, self.threads)

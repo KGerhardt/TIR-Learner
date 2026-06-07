@@ -36,7 +36,7 @@ a bunch of work for *very* small time gains in most cases.
 class newTL:
 	def __init__(self, genome_file_path: str, TIR_length: int = 5_000,
 				 processors: int = 1, cnn_ratio: int = 4, species = None, wd = 'TIR_Learner_working_directory',
-				 extension_size = 20, chunk_size = 5_000_000, olap = 7_500, skip_tirvish = False,
+				 extension_size = 0, chunk_size = 5_000_000, olap = 7_500, skip_tirvish = False,
 				 skip_grf = False, existing_tirvish = None, existing_grf = None):
 
 		self.threads = processors

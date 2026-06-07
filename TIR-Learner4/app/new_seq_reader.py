@@ -6,6 +6,8 @@ import re
 
 import numpy as np
 
+from .output_compressor import read_json
+
 seqid_offset_regex = re.compile(r'.+;;(\d+)')
 #seqid_seqname_regex = re.compile(r'(.+);;\d+')
 seqid_seqname_regex = re.compile(r';;\d+')
@@ -105,6 +107,11 @@ class json_structure:
 
 #Might need to have an additional version that decomposes TIRvish + GRF records into their parts for CNN work; this is OK I think
 class json_loader:
+	#Per-candidate arrays the CNN stage consumes; the 2 per-seqid scalars
+	#(seq_length, chunking_offset) are copied verbatim into every batch.
+	CNN_CANDIDATE_ARRAYS = ('seq_start_incl_tsd', 'seq_stop_incl_tsd',
+							'tsd1_size', 'tsd2_size', 'tir1_size', 'tir2_size')
+
 	def __init__(self, working_dir = None):
 		self.json_data = None
 		self.workloads = None
@@ -115,8 +122,7 @@ class json_loader:
 		self.path_regex = re.compile(r'.+(split_genome.+_chunk_.+_offset_.+\.fasta)')
 		
 	def load_json(self, json_file, get_names = True):
-		with open(json_file) as inf:
-			self.json_data = json.load(inf)
+		self.json_data = read_json(json_file)
 			
 		self.workloads = []
 		
@@ -162,8 +168,7 @@ class json_loader:
 				self.workloads.append((new_source, this_workload,))
 	
 	def load_json_for_cnn(self, json_file):
-		with open(json_file) as inf:
-			self.json_data = json.load(inf)
+		self.json_data = read_json(json_file)
 			
 		self.workloads = []
 		for source_file in self.json_data:
@@ -180,6 +185,49 @@ class json_loader:
 						print(f'{source_file} not found, this will probably fail.')
 						
 			self.workloads.append((new_source, self.json_data[source_file],))
+
+	def build_cnn_batches(self, max_candidates):
+		"""Yield (source_path, batch_dict) work units of <= max_candidates candidates.
+
+		Planner for the redesigned CNN stage. Walks the per-chunk workloads built by
+		load_json_for_cnn and packs their candidates into modestly sized batches, so
+		each CNN worker handles a bounded candidate collection (bounded RAM + real
+		load balance instead of one worker stuck on a 400k-candidate chunk). A single
+		oversized seqid is split across several batches (each worker simply re-reads
+		that chunk's fasta); small seqids from the same chunk are grouped. Batches
+		never cross chunk files, so a worker reads exactly one fasta, and candidate
+		order within each seqid is preserved (overlap resolution re-sorts in main).
+
+		batch_dict is {seqid: {'seq_length', 'chunking_offset', <6 candidate arrays>}}
+		- the exact structure bed_worker.convert_json_to_sequences_for_cnn expects.
+		"""
+		if max_candidates < 1:
+			raise ValueError('max_candidates must be >= 1')
+		for source_path, chunk_dict in self.workloads:
+			batch = {}
+			fill = 0
+			for seqid, block in chunk_dict.items():
+				m = len(block['seq_start_incl_tsd'])
+				pos = 0
+				while pos < m:
+					take = min(max_candidates - fill, m - pos)
+					dest = batch.get(seqid)
+					if dest is None:
+						dest = {'seq_length': block['seq_length'],
+								'chunking_offset': block['chunking_offset']}
+						for k in self.CNN_CANDIDATE_ARRAYS:
+							dest[k] = []
+						batch[seqid] = dest
+					for k in self.CNN_CANDIDATE_ARRAYS:
+						dest[k].extend(block[k][pos:pos + take])
+					fill += take
+					pos += take
+					if fill == max_candidates:
+						yield (source_path, batch)
+						batch = {}
+						fill = 0
+			if fill > 0:
+				yield (source_path, batch)
 	
 #class for converting JSON records to bed files, calling bedtools, working with those files, etc.
 class bed_worker:
@@ -362,7 +410,7 @@ class bed_worker:
 					
 		return tir_types, clean_tsd_pcts, clean_tir_pcts
 	
-	def cnn_filter_json(self, passing_indices, tir_types, tsd_percents, tir_percents, module = 'Module4', cnn_scores = None):				
+	def format_cnn_passers(self, passing_indices, tir_types, tsd_percents, tir_percents, module = 'Module4', cnn_scores = None):				
 		new_json = {}
 		finalized_sequence = {}
 		finalized_gff3 = {}
@@ -455,6 +503,20 @@ class bed_worker:
 
 			#Encode these are one record for sanity later
 			finalized_sequence[seqid].append(f'{final_seqname}\n{tir_only_seq}')
+
+		return new_json, finalized_gff3, finalized_sequence
+
+	def cnn_filter_json(self, passing_indices, tir_types, tsd_percents, tir_percents, module = 'Module4', cnn_scores = None):
+		#Backward-compatible combined formatter + overlap resolver, retained for the
+		#Module1/BLAST path (blast_new). The redesigned CNN stage instead calls
+		#format_cnn_passers in workers and resolve_overlaps in main after merging
+		#each seqid's passers across batches.
+		new_json, finalized_gff3, finalized_sequence = self.format_cnn_passers(passing_indices, tir_types, tsd_percents, tir_percents, module, cnn_scores)
+		keep_indices = self.resolve_overlaps(new_json)
+		return new_json, finalized_gff3, finalized_sequence, keep_indices
+
+	@staticmethod
+	def resolve_overlaps(new_json):
 
 		#Resolve overlaps
 		keep_indices = {}
@@ -578,13 +640,14 @@ class bed_worker:
 			#Store the loci of final sequences to be kept
 			keep_indices[seqid][mask_loci] = True
 		
-		return new_json, finalized_gff3, finalized_sequence, keep_indices
+		return keep_indices
+
 			
 	def fake_fasta(self):
 		self.my_loaded_sequences = ''.join(f'>{k}\n{v}\n' for k, v in self.my_loaded_sequences.items())
 	
 #5200 is the default TIR size limit (5k) + 200 (extension size default, not really used anymore)
-def dereplicate_json(json_data, overlap_size = 5200):
+def dereplicate_json(json_data, overlap_size = 5000):
 	chunk_id_regex = re.compile(r'long_chunk_(.+)_offset_(\d+).fasta')
 	
 	cleaned_json = {}

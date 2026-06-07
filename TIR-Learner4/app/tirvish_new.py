@@ -8,6 +8,7 @@ import json
 from .get_tans import tan_worker
 from .new_tir_tsd import tsd_tir_checker
 from .new_seq_reader import json_structure, dereplicate_json
+from .output_compressor import write_formatted_json
 
 #Regular expressions I use later on
 genome_split_regex = re.compile(r'(.+);;(\d+)')
@@ -203,8 +204,7 @@ def TIRvish_manager(input_genome_files, original_genome_seqlen_dict, output_dire
 		
 		combined_json = dereplicate_json(combined_json, overlap_size)
 		
-		with open(tirvish_json, 'w', encoding = 'ascii') as out:
-			json.dump(combined_json, out, indent = 4)
+		write_formatted_json(combined_json, tirvish_json)
 		
 		#Checkpoint code here
 		shutil.copy(tirvish_json, checkf)

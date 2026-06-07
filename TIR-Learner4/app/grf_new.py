@@ -12,6 +12,7 @@ import shutil
 from .get_tans import tan_worker
 from .new_tir_tsd import tsd_tir_checker
 from .new_seq_reader import json_structure, dereplicate_json
+from .output_compressor import write_formatted_json
 
 #Regular expressions used here and there
 genome_split_regex = re.compile(r'(.+);;(\d+)')
@@ -55,10 +56,8 @@ def one_GRF(gen):
 	
 	chunk_base = os.path.basename(gen)
 	
-	out = os.path.join(outdir, os.path.splitext(chunk_base)[0])  # grf_rs --batch writes here
-	
-	#out = args[1]
-	actual_output_file = os.path.join(out, 'candidate.fasta')
+	#grf_rs --batch writes one flat file per chunk: <outdir>/<chunk_stem>.json (no per-chunk dir)
+	actual_output_file = os.path.join(outdir, f'{os.path.splitext(chunk_base)[0]}.json')
 	#partial_json = os.path.join(out, 'grf_partial_json.txt')
 	
 	#Detection is done up-front by one grf_rs --batch call in GRF_manager; candidate.fasta already exists.
@@ -69,7 +68,9 @@ def one_GRF(gen):
 	
 	#Local is_TA and is_N values
 	#is_TA, is_N = get_tans(gen)
-	tan_check = tan_worker(gen)
+	#keep_sequences: retain each chunk's sequence in memory so candidate element + TSD bases can be
+	#re-sliced by coordinate (grf_rs now emits coords-only candidate.json, not subsequence fasta).
+	tan_check = tan_worker(gen, keep_sequences = True)
 	aligner = tsd_tir_checker()
 	json_record = json_structure(tan_check.seqlens, include_label = False)
 	
@@ -119,74 +120,51 @@ def one_GRF(gen):
 		#these are not extensible within that chunk, but will always be found AND be extensible in another chunk thanks to the overlap
 	'''
 
-	#with open(cleaned_output_file, 'w') as outf:
-	for seqid, sequence in pyfastx.Fasta(actual_output_file, build_index = False):
-		first_4 = sequence[0:4]
-		
-		slo = len(sequence)
-		
-		match = re.match(grfmite_regex, seqid)
-		grps = match.groups()
-		
-		#GRF TSDs are always symmetrical, which makes life easy on the JSON stuff
-		tsd = grps[5]
-		tsd_size = len(tsd)
-		
-		short_id = grps[0]
-		
-		#cig is the TIR element that needs parsed into tir1 start + stop and tir2 start + stop
-		cig = grps[4]
+	#grf_rs now emits coords-only candidate.json: {chunk_seqid: {start:[],end:[],arm:[],tsd:[]}}.
+	#The chunk_seqid key is exactly "{chrom};;{offset}" = the tan_check / seq_dict key = the JSON
+	#record seqid, so it is used directly. Element sequence and TSD bases are re-sliced from the
+	#in-memory chunk (kept via keep_sequences=True) instead of being read back from disk.
+	with open(actual_output_file) as jf:
+		grf_candidates = json.load(jf)
 
-		#Offset we can get from the file as above, not needed here it's a guaranteed constnat
-		#offset = int(grps[1])
-		
-		#TA key will also be the seqid key inside the JSON
-		ta_key = f'{short_id};;{offset}'
-		
-		#Note: GRF coordinates are not inclusive of the TSD; start-stop includes TIRs but not TSD
-		
-		#GRF is 1-indexed, but so is the tan_checker
-		#The local_start -= tsd_size : local_stop += tsd_size is the full element with TSDs
-		local_start, local_stop = int(grps[2]), int(grps[3])
-		
-		#these are the with-TSDs boundaries
-		full_element_start, full_element_stop = local_start - tsd_size, local_stop + tsd_size
-		
-		#Uses prefix sum arrays to check if TA and N content, sequence length are OK
-		#TA + N indices are intentionally 1-indexed to match the formatting of GRF
-		
-		#We use local start/stop here because we don't want to check the TSD TA/N percentage
-		passing = tan_check.check_acceptable_tans(ta_key, local_start, local_stop, min_seqlen = min_seqlen, max_ta_pct = max_ta_pct, max_n_pct = max_N_pct)
-		
-		if passing:				
-			#Passing sequences still need to check TSD and maybe first 4
-			if tsd_size > 6 or tsd == "TAA" or tsd == "TTA" or tsd == "TA" or first_4 == "CACT" or first_4 == "GTGA":
-				
-				#TIRs are also symmetrical in GRF
-				tir_size = int(cig)
-				
-				#Check TIR is acceptable length and similarity so that we don't have to post CNN
-				left_tir_seq = sequence[0:tir_size]
-				right_tir_seq = aligner.revcomp(sequence[-tir_size:])
-				
-				has_tir, l_rep_sz, r_rep_sz, r_start, q_start, pct = aligner.wfa_align(left_tir_seq, right_tir_seq, 
-																				min_size = 10, min_similarity = 0.8)
-				if has_tir:
-					json_record.add_record(seqid = ta_key, 
-											start = full_element_start, 
-											stop = full_element_stop, 
-											tsd1 = tsd_size, 
-											tsd2 = tsd_size, 
-											tir1 = tir_size, 
-											tir2 = tir_size)
-	
-	
-	
+	for ta_key, cols in grf_candidates.items():
+		chunk_seq = tan_check.seq_dict[ta_key]
+		for local_start, local_stop, tir_size, tsd_size in zip(cols['start'], cols['end'], cols['arm'], cols['tsd']):
+			#GRF coords are 1-based inclusive and exclude the TSD. Recover the element (no TSD) and
+			#the left TSD bases (GRF TSDs are symmetrical) by slicing the chunk we already hold.
+			element_seq = chunk_seq[local_start - 1 : local_stop]
+			first_4 = element_seq[0:4]
+			tsd = chunk_seq[local_start - 1 - tsd_size : local_start - 1]
+
+			#these are the with-TSDs boundaries
+			full_element_start, full_element_stop = local_start - tsd_size, local_stop + tsd_size
+
+			#We use local start/stop here because we don't want to check the TSD TA/N percentage
+			passing = tan_check.check_acceptable_tans(ta_key, local_start, local_stop, min_seqlen = min_seqlen, max_ta_pct = max_ta_pct, max_n_pct = max_N_pct)
+
+			if passing:
+				#Passing sequences still need to check TSD and maybe first 4
+				if tsd_size > 6 or tsd == "TAA" or tsd == "TTA" or tsd == "TA" or first_4 == "CACT" or first_4 == "GTGA":
+					#TIRs are symmetrical in GRF; tir_size is the integer arm length
+					left_tir_seq = element_seq[0:tir_size]
+					right_tir_seq = aligner.revcomp(element_seq[-tir_size:])
+
+					has_tir, l_rep_sz, r_rep_sz, r_start, q_start, pct = aligner.wfa_align(left_tir_seq, right_tir_seq,
+																					min_size = 10, min_similarity = 0.8)
+					if has_tir:
+						json_record.add_record(seqid = ta_key,
+												start = full_element_start,
+												stop = full_element_stop,
+												tsd1 = tsd_size,
+												tsd2 = tsd_size,
+												tir1 = tir_size,
+												tir2 = tir_size)
+
 	os.remove(actual_output_file)
 
 	json_record.sort_records()
 	
-	return json_record, gen, out
+	return json_record, gen
 	
 def GRF_manager(input_genome_files, original_genome_seqlen_dict, output_directory, checkpoint_directory, overlap_size, chunk_size, threads = 1, max_TIR_length = 5000):
 	#outf = os.path.join(output_directory, 'GRF_results.txt')
@@ -231,7 +209,7 @@ def GRF_manager(input_genome_files, original_genome_seqlen_dict, output_director
 
 		with multiprocessing.Pool(threads, initializer=grf_init, initargs=(output_directory, max_TIR_length)) as pool:
 		#with multiprocessing.Pool(1) as pool:
-			for json_dict, genome_file, output_directory in pool.imap_unordered(one_GRF, args):				
+			for json_dict, genome_file in pool.imap_unordered(one_GRF, args):
 				#Convert out of numpy for json write
 				if json_dict.has_records:
 					combined_json[genome_file] = json_dict.json_record
@@ -240,14 +218,11 @@ def GRF_manager(input_genome_files, original_genome_seqlen_dict, output_director
 				if ct % percent_mod == 0:
 					print(f'GRF search is {round(100*ct/num_args, 2)}% complete ({ct} of {num_args})')
 					
-				#Clean up
-				#os.remove(output_tsv)
-				os.rmdir(output_directory)
+				#Clean up: one_GRF already removed the flat candidate file; no per-chunk dir to reap.
 		
 		combined_json = dereplicate_json(combined_json, overlap_size)
 		
-		with open(grf_json, 'w', encoding = 'ascii') as out:
-			json.dump(combined_json, out, indent = 4)
+		write_formatted_json(combined_json, grf_json)
 			
 		#Checkpoint code here
 		shutil.copy(grf_json, checkf)	
