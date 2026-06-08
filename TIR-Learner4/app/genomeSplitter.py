@@ -9,6 +9,42 @@ import subprocess
 
 #import numpy as np
 
+#--- pyfastx int32 byte-length (blen) overflow repair + verification --------------------------------
+# pyfastx (<= 2.3.0) computes each record's on-disk byte length in a signed 32-bit int while building
+# the .fxi, so a sequence whose bytes (bases + newlines) exceed 2^31 (~2.1 Gbp chromosomes, e.g.
+# lungfish) is stored NEGATIVE. The read path reads it back as int64 -> bogus malloc/fread size ->
+# instant segfault on any access to that sequence (which silently kills a chunk_write worker and
+# deadlocks the split pool). See repair_index_overflows().
+def _verify_read_worker(genome, seqid, q):
+	# Runs in a child process so a still-broken (segfaulting) read can't take down the splitter.
+	try:
+		import pyfastx
+		fa = pyfastx.Fasta(genome)
+		q.put(("ok", len(fa[seqid].seq)))
+	except Exception as e:
+		q.put(("error", repr(e)))
+
+def verify_seq_read(genome, seqid, expected_len, timeout = 300):
+	# (ok, detail); ok only if the read completes, does not crash, and length == expected_len.
+	q = multiprocessing.Queue()
+	p = multiprocessing.Process(target = _verify_read_worker, args = (genome, seqid, q))
+	p.start()
+	p.join(timeout)
+	if p.is_alive():
+		p.terminate(); p.join()
+		return False, f"read timed out after {timeout}s"
+	if p.exitcode and p.exitcode < 0:
+		return False, f"reader process crashed (signal {-p.exitcode}; -11 = segfault)"
+	try:
+		status, payload = q.get(timeout = 5)
+	except Exception:
+		return False, "reader produced no result (likely crashed before reporting)"
+	if status != "ok":
+		return False, f"read raised: {payload}"
+	if payload != expected_len:
+		return False, f"length mismatch: got {payload:,}, expected {expected_len:,}"
+	return True, f"len={payload:,}"
+
 def options():
 	parser = argparse.ArgumentParser(
 		description='''Tool and Python API for splitting a genome into chunks.
@@ -143,10 +179,53 @@ class genomeSplitter:
 			if not self.quiet:
 				print('Indexing complete.')
 		
+		#Repair pyfastx int32 byte-length overflows (lungfish-class >2 Gbp chromosomes) before anything
+		#reads sequences -- otherwise such a read segfaults a worker and deadlocks the split pool.
+		self.repair_index_overflows()
+
 		self.get_seqlens()
-		
+
 		if not self.quiet:
 			print(f'Sequence summarized.')
+
+	def repair_index_overflows(self):
+		"""Fix and verify pyfastx int32-overflowed record byte lengths (seq.blen) in the .fxi.
+
+		Any sequence whose on-disk bytes exceed 2^31 gets a NEGATIVE blen from pyfastx's 32-bit index
+		build; reading it then segfaults. The true value is the un-truncated accumulator
+		(blen + 2^32 for blen in [2^31, 2^32); verified byte-exact vs the correct int64 boff gaps).
+		Applied in all cases (idempotent: no-op when nothing overflowed). After patching, each repaired
+		sequence is read back in a subprocess so a still-broken read aborts the run loudly here instead
+		of segfaulting/hanging mid-split.
+		"""
+		TWO32 = 2 ** 32
+		conn = sqlite3.connect(self.index)
+		cur = conn.cursor()
+		bad = cur.execute("SELECT chrom, slen, blen FROM seq WHERE blen < 0").fetchall()
+		if not bad:
+			conn.close()
+			return
+		for chrom, slen, blen in bad:
+			if not (0 < blen + TWO32 < TWO32):
+				conn.close()
+				raise RuntimeError(
+					f"genomeSplitter: sequence {chrom} byte length overflowed past a single 32-bit wrap "
+					f"(record > 4.29 GB); the +2^32 repair does not apply. Reindex with a 64-bit pyfastx.")
+		cur.execute("UPDATE seq SET blen = blen + ? WHERE blen < 0", (TWO32,))
+		conn.commit()
+		conn.close()
+		if not self.quiet:
+			print(f"Repaired {len(bad)} pyfastx index byte-length overflow(s) for >2 Gbp sequence(s): "
+				  f"{', '.join(c for c, _, _ in bad)}")
+		for chrom, slen, _ in bad:
+			ok, detail = verify_seq_read(self.path, chrom, slen)
+			if not ok:
+				raise RuntimeError(
+					f"genomeSplitter: index repair did NOT fix retrieval of {chrom} ({slen:,} bp): {detail}. "
+					f"pyfastx still cannot read this >2 Gbp sequence; aborting before the split would hang. "
+					f"(Upstream pyfastx 32-bit byte-length bug.)")
+			if not self.quiet:
+				print(f"   verified read OK after repair: {chrom} ({slen:,} bp)")
 
 	#Divide long sequences into even chunks with overlap as close to chunk size as possible without going over
 	def evenly_chunk_long_sequences(self, longs):
