@@ -595,7 +595,11 @@ def chunk_write(args):
 	else:
 		seqid = args[1]
 		print(f'Wrangling long sequence {seqid}')
-		long_seq = fa[seqid].seq.upper()
+		# Do NOT .upper() the whole chromosome here: that holds two full copies of a
+		# multi-Gbp sequence (pyfastx's + the uppercased one) and can OOM a worker.
+		# Uppercase each 5 Mbp slice at write time instead (see subseq below); peak then
+		# stays ~1x the chromosome. Byte-identical output (slice-then-upper == upper-then-slice).
+		long_seq = fa[seqid].seq
 		
 		print(f'Long sequence {seqid} total bp is {len(long_seq)} and has {len(args[2])} chunks')
 		
@@ -606,7 +610,7 @@ def chunk_write(args):
 			output_file = os.path.join(output_dir, f'long_chunk_{seqid}_offset_{start}.fasta')
 			#my_fai = os.path.join(f'{output_file}.fai')
 			new_id = f'{seqid};;{start}'
-			subseq = long_seq[start:end]
+			subseq = long_seq[start:end].upper()
 			writeout = idx_worker.add_record(new_id, subseq)
 			with open(output_file, 'w') as out:
 				print(f'>{new_id}', file = out)

@@ -57,7 +57,7 @@ def one_GRF(gen):
 	chunk_base = os.path.basename(gen)
 	
 	#grf_rs --batch writes one flat file per chunk: <outdir>/<chunk_stem>.json (no per-chunk dir)
-	actual_output_file = os.path.join(outdir, f'{os.path.splitext(chunk_base)[0]}.json')
+	actual_output_file = os.path.join(outdir, f'{os.path.splitext(chunk_base)[0]}.grf.txt')
 	#partial_json = os.path.join(out, 'grf_partial_json.txt')
 	
 	#Detection is done up-front by one grf_rs --batch call in GRF_manager; candidate.fasta already exists.
@@ -120,12 +120,29 @@ def one_GRF(gen):
 		#these are not extensible within that chunk, but will always be found AND be extensible in another chunk thanks to the overlap
 	'''
 
-	#grf_rs now emits coords-only candidate.json: {chunk_seqid: {start:[],end:[],arm:[],tsd:[]}}.
-	#The chunk_seqid key is exactly "{chrom};;{offset}" = the tan_check / seq_dict key = the JSON
-	#record seqid, so it is used directly. Element sequence and TSD bases are re-sliced from the
-	#in-memory chunk (kept via keep_sequences=True) instead of being read back from disk.
+	#grf_rs streams a compact line format per chunk: a "#<seqid>" header line per sequence
+	#(seqid = "{chrom};;{offset}" = the tan_check/seq_dict key), then one "start end arm tsd_len"
+	#record line per candidate (1-based inclusive start/end, TSD/element re-sliced from the in-memory
+	#chunk by coord). Rebuild the per-seqid columnar dict {seqid:{start:[],end:[],arm:[],tsd:[]}} the
+	#rest of this function consumes. Order within a seqid is irrelevant (json_structure.sort_records
+	#re-sorts); a seqid with no candidates simply never appears.
+	grf_candidates = {}
 	with open(actual_output_file) as jf:
-		grf_candidates = json.load(jf)
+		cur = None
+		for line in jf:
+			line = line.rstrip('\n')
+			if not line:
+				continue
+			if line[0] == '#':
+				cur = line[1:]
+			else:
+				s, e, arm, tsd = line.split()
+				cols = grf_candidates.get(cur)
+				if cols is None:
+					cols = {'start': [], 'end': [], 'arm': [], 'tsd': []}
+					grf_candidates[cur] = cols
+				cols['start'].append(int(s)); cols['end'].append(int(e))
+				cols['arm'].append(int(arm)); cols['tsd'].append(int(tsd))
 
 	for ta_key, cols in grf_candidates.items():
 		chunk_seq = tan_check.seq_dict[ta_key]
