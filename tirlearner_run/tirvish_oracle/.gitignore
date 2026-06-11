@@ -1,0 +1,4 @@
+# Regenerable suffixerator indices (gt suffixerator -mirrored), ~95 MB; rebuilt by run_gt_tirvish.sh
+idx/
+# gt stderr logs
+*.err
